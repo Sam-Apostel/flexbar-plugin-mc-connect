@@ -21,6 +21,12 @@
             "minimumVersion": "10"
         }
     ],
+    "device": [
+        {
+            "name": "flexbar",
+            "version": "1.0.0"
+        }
+    ],
     "keyLibrary": {
         "title": "My Plugin",
         "style": {
@@ -40,7 +46,6 @@
             },
             {
                 "title": "Submenu",
-                "id": "submenu",
                 "style": {
                     "icon": "mdi mdi-folder-outline",
                     "width": 240
