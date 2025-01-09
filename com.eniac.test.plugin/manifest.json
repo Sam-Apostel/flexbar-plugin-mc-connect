@@ -1,0 +1,69 @@
+{
+    "name": "test",
+    "version": "0.1.0",
+    "author": "eniac",
+    "entry": "backend/plugin.js",
+    "description": "test",
+    "repo": "",
+    "sdk": {
+        "version": "1.0.0"
+    },
+    "software": {
+        "minimumVersion": "0.1.5"
+    },
+    "os": [
+        {
+            "platform": "mac",
+            "minimumVersion": "10.15"
+        },
+        {
+            "platform": "windows",
+            "minimumVersion": "10"
+        }
+    ],
+    "keyLibrary": {
+        "title": "My Plugin",
+        "style": {
+            "icon": "mdi mdi-puzzle"
+        },
+        "children": [
+            {
+                "title": "Screenshot",
+                "id": "screenshot",
+                "style": {
+                    "icon": "mdi mdi-fit-to-screen",
+                    "width": 240
+                },
+                "data": {
+                    "path": ""
+                }
+            },
+            {
+                "title": "Submenu",
+                "id": "submenu",
+                "style": {
+                    "icon": "mdi mdi-folder-outline",
+                    "width": 240
+                },
+                "data": {
+                    "path": "",
+                    "win": ""
+                },
+                "children": [
+                    {
+                        "title": "Screen Mirror",
+                        "id": "screen_mirror",
+                        "style": {
+                            "icon": "mdi mdi-monitor-screenshot",
+                            "width": 240
+                        },
+                        "data": {
+                            "path": ""
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "uuid": "com.eniac.test"
+}

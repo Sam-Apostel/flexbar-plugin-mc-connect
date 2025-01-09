@@ -1,0 +1,16 @@
+{
+  "scripts": {
+    "build": "rollup -c",
+    "test": "rollup -c -w --watch.onEnd=\"flexdesigner restart com.eniac.test\""
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.0",
+    "@rollup/plugin-node-resolve": "^15.2.2",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^12.1.0",
+    "rollup": "^4.0.2"
+  },
+  "dependencies": {
+    "@rollup/plugin-json": "^6.1.0"
+  }
+}
