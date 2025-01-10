@@ -29,12 +29,10 @@ export default class WebSocketClient {
       this.ws.on('message', (data) => {
         try {
           const message = JSON.parse(data);
-          if (message.type === 'command-response' && message.uuid) {
-            const handler = this.responseHandlers.get(message.uuid);
-            if (handler) {
-              handler.resolve(message);
-              this.responseHandlers.delete(message.uuid);
-            }
+          const handler = this.responseHandlers.get(message.uuid);
+          if (handler) {
+            handler.resolve(message);
+            this.responseHandlers.delete(message.uuid);
           }
         } catch (error) {
           logger.error(`Failed to parse message: ${error.message}`);

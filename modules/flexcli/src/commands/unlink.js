@@ -8,14 +8,18 @@ import logger from '../utils/logger.js';
  */
 export default async function unlinkCommand(wsClient, options) {
   const { uuid } = options;
-  const cmd = `plugin operation=unlink --uuid=${uuid}`;
+  const cmd = {
+    cmd: 'plugin',
+    operation: 'unlink',
+    uuid,
+  }
 
   try {
     const response = await wsClient.sendCommand(cmd);
-    if (response.result === 'success') {
-      logger.info(`Unlink command successful: ${response.payload}`);
+    if (response.payload.result === 'success') {
+      logger.info(`Unlink command successful: ${JSON.stringify(response, null, 2)}`);
     } else {
-      logger.error(`Unlink command failed: ${response.payload}`);
+      logger.error(`Unlink command failed: ${JSON.stringify(response, null, 2)}`);
     }
   } catch (error) {
     logger.error(`Error in unlink command: ${error.message}`);

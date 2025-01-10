@@ -1,21 +1,28 @@
 // commands/link.js
 import logger from '../utils/logger.js';
-
+import path from 'path';
 /**
  * Handles the 'link' command.
  * @param {WebSocketClient} wsClient - The WebSocket client instance.
  * @param {Object} options - The command options.
  */
 export default async function linkCommand(wsClient, options) {
-  const { path, uuid } = options;
-  const cmd = `plugin operation=link --path=${path} --uuid=${uuid}`;
+  const uuid = options.uuid;
+  const pluginPath = path.resolve(options.path);
+
+  const cmd = {
+    cmd: 'plugin',
+    operation: 'link',
+    path: pluginPath,
+    uuid,
+  }
 
   try {
     const response = await wsClient.sendCommand(cmd);
-    if (response.result === 'success') {
-      logger.info(`Link command successful: ${response.payload}`);
+    if (response.payload.result === 'success') {
+      logger.info(`Link command successful: ${JSON.stringify(response, null, 2)}`);
     } else {
-      logger.error(`Link command failed: ${response.payload}`);
+      logger.error(`Link command failed: ${JSON.stringify(response, null, 2)}`);
     }
   } catch (error) {
     logger.error(`Error in link command: ${error.message}`);

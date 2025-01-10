@@ -1,6 +1,8 @@
-const winston = require('winston');
+import winston from 'winston';
+import os from 'os';
 var cachedLogger = null;
-const osName = require('os').platform();
+const osName = os.platform();
+
 function processPathSpaces(input) {
     if (osName == 'win32') {
         return input.replace(/\\/g, '/').split('/').map(subStr => {
@@ -74,7 +76,5 @@ function initLogger() {
     return logger;
 }
 
-module.exports = {
-    logger: cachedLogger || (cachedLogger = initLogger())
-};
+export default (cachedLogger || (cachedLogger = initLogger()));
 

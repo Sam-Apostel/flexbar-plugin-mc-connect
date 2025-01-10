@@ -1,5 +1,6 @@
 <template>
   <v-container>
+    <v-alert type="info" icon="mdi-information" dense text="Hello"/>
     <v-row class="align-center">
         <v-col cols="12" class="pb-4">
             <v-text-field v-model="modelValue.data.path" variant="underlined" :maxlength="8192"

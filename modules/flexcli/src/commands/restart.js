@@ -8,14 +8,18 @@ import logger from '../utils/logger.js';
  */
 export default async function restartCommand(wsClient, options) {
   const { uuid } = options;
-  const cmd = `plugin operation=restart --uuid=${uuid}`;
+  const cmd = {
+    cmd: 'plugin',
+    operation: 'restart',
+    uuid,
+  }
 
   try {
     const response = await wsClient.sendCommand(cmd);
-    if (response.result === 'success') {
-      logger.info(`Restart command successful: ${response.payload}`);
+    if (response.payload.result === 'success') {
+      logger.info(`Restart command successful: ${JSON.stringify(response, null, 2)}`);
     } else {
-      logger.error(`Restart command failed: ${response.payload}`);
+      logger.error(`Restart command failed: ${JSON.stringify(response, null, 2)}`);
     }
   } catch (error) {
     logger.error(`Error in restart command: ${error.message}`);

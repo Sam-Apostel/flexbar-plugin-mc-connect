@@ -6,17 +6,17 @@ import logger from '../utils/logger.js';
  * @param {WebSocketClient} wsClient - The WebSocket client instance.
  */
 export default async function listCommand(wsClient) {
-  const cmd = `plugin operation=list`;
+  const cmd = {
+    cmd: 'plugin',
+    operation: 'list',
+  }
 
   try {
     const response = await wsClient.sendCommand(cmd);
-    if (response.result === 'success') {
-      const plugins = JSON.parse(response.payload);
-      plugins.forEach(plugin => {
-        logger.info(`Plugin UUID: ${plugin.uuid}`);
-      });
+    if (response.payload.result === 'success') {
+      logger.info(`List command successful: ${JSON.stringify(response, null, 2)}`);
     } else {
-      logger.error(`List command failed: ${response.payload}`);
+      logger.error(`List command failed: ${JSON.stringify(response, null, 2)}`);
     }
   } catch (error) {
     logger.error(`Error in list command: ${error.message}`);
