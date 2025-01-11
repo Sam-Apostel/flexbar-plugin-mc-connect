@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "description": "CLI tool for FlexDesigner",
   "main": "src/index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.js"
   },
   "author": "eniac",
   "license": "MIT",
   "dependencies": {
-    "archiver": "^7.0.1"
+    "archiver": "^7.0.1",
+    "commander": "^13.0.0",
+    "websocket": "^1.0.35",
+    "winston": "^3.17.0"
   }
 }
