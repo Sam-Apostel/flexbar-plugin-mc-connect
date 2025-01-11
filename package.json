@@ -2,7 +2,6 @@
   "scripts": {
     "build": "rollup -c",
     "dev": "npm-run-all plugin:unlink plugin:link -p plugin:watch plugin:debug",
-    "test": "npm run plugin:unlink && npm run plugin:link && npm run plugin:watch",
     "plugin:watch": "rollup -c -w --watch.onEnd=\"npm run plugin:restart\"",
     "plugin:unlink": "node modules/flexcli/src/index.js plugin unlink --uuid com.eniac.test --silent",
     "plugin:link": "node modules/flexcli/src/index.js plugin link --path com.eniac.test.plugin --uuid com.eniac.test",
