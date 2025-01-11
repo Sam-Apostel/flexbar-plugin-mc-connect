@@ -1,7 +1,10 @@
 {
   "scripts": {
     "build": "rollup -c",
-    "test": "rollup -c -w --watch.onEnd=\"flexdesigner restart com.eniac.test\""
+    "test": "npm run plugin:unlink && npm run plugin:link && rollup -c -w --watch.onEnd=\"npm run plugin:restart\"",
+    "plugin:unlink": "node modules/flexcli/src/index.js plugin unlink --uuid com.eniac.test --silent",
+    "plugin:link": "node modules/flexcli/src/index.js plugin link --path com.eniac.test.plugin --uuid com.eniac.test",
+    "plugin:restart": "node modules/flexcli/src/index.js plugin restart --uuid=com.eniac.test"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.0",

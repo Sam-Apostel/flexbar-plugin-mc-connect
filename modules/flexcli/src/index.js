@@ -22,6 +22,7 @@ plugin
   .description('Link a plugin')
   .requiredOption('--path <path>', 'Path to the folder')
   .requiredOption('--uuid <uuid>', 'UUID string')
+  .option('--debug <debug>', 'Debug mode (true/false)', 'false')
   .action(async (options) => {
     try {
       const port = program.opts().port;
@@ -54,6 +55,7 @@ plugin
   .command('unlink')
   .description('Unlink a plugin')
   .requiredOption('--uuid <uuid>', 'UUID string')
+  .option('--silent', 'Silent mode', false)
   .action(async (options) => {
     try {
       const port = program.opts().port;

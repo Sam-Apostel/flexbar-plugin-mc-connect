@@ -46,6 +46,7 @@ export default class WebSocketClient {
 
       this.ws.on('close', () => {
         logger.info('WebSocket connection closed');
+        process.exit(0);
       });
     });
   }

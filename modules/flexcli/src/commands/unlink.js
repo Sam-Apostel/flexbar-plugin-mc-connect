@@ -16,12 +16,18 @@ export default async function unlinkCommand(wsClient, options) {
 
   try {
     const response = await wsClient.sendCommand(cmd);
+    if (options.silent) {
+      return;
+    }
     if (response.payload.result === 'success') {
       logger.info(`Unlink command successful: ${JSON.stringify(response, null, 2)}`);
     } else {
       logger.error(`Unlink command failed: ${JSON.stringify(response, null, 2)}`);
     }
   } catch (error) {
+    if (options.silent) {
+      return;
+    }
     logger.error(`Error in unlink command: ${error.message}`);
   }
 }

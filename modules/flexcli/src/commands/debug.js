@@ -11,7 +11,7 @@ export default async function debugCommand(wsClient, options) {
   const cmd = {
     cmd: 'plugin',
     operation: 'debug',
-    debug: options.debug,
+    debug: options.debug === 'true',
     uuid,
   }
 

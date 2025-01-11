@@ -36,12 +36,12 @@ export default {
         const result = await this.$com.sendToBackend({
           data: 'Hello from UI',
         })
-        console.log('Received response from plugin:', result);
+        console.log('Received response from backend:', result);
         this.modelValue.data.path = result
     },
     async onTest() {
       const result = await this.$com.sendToBackend({ data: 'Hello' });
-      console.log('Received response from plugin:', result);
+      console.log('Received response from backend:', result);
     }
   },
   mounted() {
@@ -49,7 +49,7 @@ export default {
     console.log(this.$com)
 
     this.$com.onBackendMessage((data) => {
-        console.log('Received message from plugin:', data);
+        console.log('Received message from backend:', data);
     });
   },
 };

@@ -15,6 +15,7 @@ export default async function linkCommand(wsClient, options) {
     operation: 'link',
     path: pluginPath,
     uuid,
+    debug: options.debug === 'true',
   }
 
   try {

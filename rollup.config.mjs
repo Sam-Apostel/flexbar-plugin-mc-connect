@@ -25,6 +25,7 @@ const config = {
 			name: "watch-externals",
 			buildStart: function () {
 				this.addWatchFile(`${flexPlugin}/manifest.json`);
+				this.addWatchFile(`${flexPlugin}/ui/screenshot.vue`);
 			},
 		},
 		nodeResolve({
