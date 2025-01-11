@@ -32,7 +32,11 @@ export default {
   emits: ['update:modelValue'],
   methods: {
     async triggerSelectFolder() {
-        
+        const result = await this.$com.sendToBackend({
+          data: 'Hello from UI',
+        })
+        console.log('Received response from plugin:', result);
+        this.modelValue.data.path = result
     },
     async onTest() {
       const result = await this.$com.sendToBackend({ data: 'Hello' });

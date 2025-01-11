@@ -4,6 +4,7 @@
 const WebSocket = require('ws');
 const PluginCommand = require('./plugin_command');
 const { logger } = require('./logger');
+const minimist = require('minimist');
 
 class PluginClient {
   constructor() {
@@ -30,7 +31,9 @@ class PluginClient {
 
     this.ws.on('open', () => {
       logger.info(`Connected to server at ${this.serverUrl}`);
-      const initCmd = new PluginCommand('uid', uid);
+      const initCmd = new PluginCommand('startup', {
+        pluginID: uid,
+      });
       logger.debug(`Sending init command: ${initCmd.toString()}`);
       this.ws.send(JSON.stringify(initCmd.toJSON()));
     });
@@ -41,52 +44,47 @@ class PluginClient {
 
     this.ws.on('close', () => {
       logger.warn('Connection closed');
+      process.exit(0);
     });
 
     this.ws.on('error', (err) => {
       logger.error(`WebSocket error: ${err.message}`);
+      process.exit(0);
     });
   }
 
   /**
-   * Parses command-line arguments to extract port and uid
-   * Supports --port=8080 --uid=12345 or -p 8080 -u 12345 formats
-   * @returns {Object} An object containing port and uid
+   * Parses command-line arguments to extract port, uid, and dir.
+   * Supports:
+   *   --port=8080 --uid=12345 --dir=/some/path
+   *   -p 8080 -u 12345 -d /some/path
+   * @returns {Object} An object containing port, uid, dir
    */
   _parseCommandLineArgs() {
-    const args = process.argv.slice(2); // Skip the first two arguments
-    const argObj = {};
-
-    for (let i = 0; i < args.length; i++) {
-      const arg = args[i];
-      if (arg.startsWith('--')) {
-        const [key, value] = arg.slice(2).split('=');
-        argObj[key] = value;
-      } else if (arg.startsWith('-')) {
-        const key = arg.slice(1);
-        const value = args[i + 1];
-        argObj[key] = value;
-        i++; // Skip the next value as it's already processed
+    const argv = minimist(process.argv.slice(2), {
+      alias: {
+        p: 'port',
+        u: 'uid',
+        d: 'dir'
       }
-    }
+    });
 
     return {
-      port: argObj.port || argObj.p,
-      uid: argObj.uid || argObj.u,
-      dir: argObj.dir || argObj.d
+      port: argv.port,
+      uid: argv.uid,
+      dir: argv.dir
     };
   }
 
   /**
    * Sends a request to the server
-   * @param {string} type - The type of the request
    * @param {Object} payload - The payload of the request
    * @param {number} timeout - Timeout in milliseconds
    * @returns {Promise} Resolves with the response payload or rejects with an error
    */
-  call(type, payload, timeout = 5000) {
+  call(payload, timeout = 5000) {
     return new Promise((resolve, reject) => {
-      const cmd = new PluginCommand(type, payload);
+      const cmd = new PluginCommand('plugin-message', payload);
       this.pendingCalls[cmd.uuid] = {
         resolve,
         reject,
@@ -122,6 +120,7 @@ class PluginClient {
    */
   _handleMessage(msg) {
     let cmd;
+    msg = msg.toString('utf8');
     try {
       cmd = PluginCommand.fromJSON(msg);
       logger.debug(`Received message: ${cmd.toString()}`);
@@ -143,7 +142,11 @@ class PluginClient {
 
     // If it's a broadcast or direct send
     const handler = this.handlers[cmd.type];
-    if (handler) handler(cmd.payload);
+    if (handler) {
+      const result = handler(cmd.payload);
+      const response = new PluginCommand('response', result, cmd.uuid, 'success');
+      this.ws.send(JSON.stringify(response.toJSON()));
+    }
   }
 }
 
