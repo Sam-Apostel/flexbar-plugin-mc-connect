@@ -72,14 +72,12 @@ plugin
   .command('debug')
   .description('Debug a plugin')
   .requiredOption('--uuid <uuid>', 'UUID string')
-  .requiredOption('--debug <debug>', 'Debug mode (true/false)')
   .action(async (options) => {
     try {
       const port = program.opts().port;
       const wsClient = new WebSocketClient(port);
       await wsClient.connect();
       await debugCommand(wsClient, options);
-      wsClient.close();
     } catch (error) {
       logger.error(`Error executing debug command: ${error.message}`);
     }

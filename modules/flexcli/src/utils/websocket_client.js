@@ -45,7 +45,7 @@ export default class WebSocketClient {
       });
 
       this.ws.on('close', () => {
-        logger.info('WebSocket connection closed');
+        // logger.info('WebSocket connection closed');
         process.exit(0);
       });
     });
@@ -84,6 +84,25 @@ export default class WebSocketClient {
           reject(new Error('Response timeout'));
         }
       }, 5000);
+    });
+  }
+
+  /**
+   * Sends a message to the server.
+   * @param {Object} payload - The message payload.
+   * @returns {Promise<void>}
+   */
+  send(payload) {
+    return new Promise((resolve, reject) => {
+      this.ws.send(JSON.stringify(payload), (error) => {
+        if (error) {
+          logger.error(`Failed to send message: ${error.message}`);
+          reject(error);
+        } else {
+          logger.info(`Sent message: ${JSON.stringify(payload)}`);
+          resolve();
+        }
+      });
     });
   }
 

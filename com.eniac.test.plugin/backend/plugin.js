@@ -20791,7 +20791,7 @@ function requirePlugin () {
 
 	setInterval(async () => {
 	    const result = await pluginClient.call({
-	        data: 'Hello from plugin!!'
+	        data: 'Hello from plugin!'
 	    });
 	    console.log('Received response:', result);
 	}, 1000);
