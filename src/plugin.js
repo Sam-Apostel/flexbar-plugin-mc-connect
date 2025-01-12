@@ -1,4 +1,6 @@
-const pluginClient = require('../modules/flexdesigner/src/plugin_client')
+const { pluginClient, logger, pluginPath, resourcesPath } = require("flexdesigner")
+
+logger.warn(pluginPath, resourcesPath)
 
 pluginClient.on('ui-message', (payload) => {
     console.log('Received message from UI:', payload)
@@ -7,9 +9,10 @@ pluginClient.on('ui-message', (payload) => {
   
 pluginClient.start()
 
+
 setInterval(async () => {
     const result = await pluginClient.call({
         data: 'Hello from plugin!'
     })
     console.log('Received response:', result)
-}, 1000);
+}, 5000);
