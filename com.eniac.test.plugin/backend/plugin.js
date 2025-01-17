@@ -27999,7 +27999,8 @@ function requirePlugin_client () {
 	// This file handles plugin-side WebSocket logic.
 	const WebSocket = requireWs();
 	const PluginCommand = requirePlugin_command();
-	const logger = requireLogger();
+	const defaultLogger = requireLogger();
+	const logger = defaultLogger.child({ scope: 'PluginClient' });
 	const minimist = requireMinimist();
 
 	class PluginClient {
@@ -28074,13 +28075,14 @@ function requirePlugin_client () {
 
 	  /**
 	   * Sends a request to the server
+	   * @param {string} command - The command to send
 	   * @param {Object} payload - The payload of the request
 	   * @param {number} timeout - Timeout in milliseconds
 	   * @returns {Promise} Resolves with the response payload or rejects with an error
 	   */
-	  call(payload, timeout = 5000) {
+	  _call(command, payload, timeout = 5000) {
 	    return new Promise((resolve, reject) => {
-	      const cmd = new PluginCommand('plugin-message', payload);
+	      const cmd = new PluginCommand(command, payload);
 	      this.pendingCalls[cmd.uuid] = {
 	        resolve,
 	        reject,
@@ -28108,6 +28110,22 @@ function requirePlugin_client () {
 	   */
 	  off(type) {
 	    delete this.handlers[type];
+	  }
+
+	  /**
+	   * Draw image on a key
+	   * 
+	   * @param {Object} key - The key object received from event device.newPage or device.userData
+	   * @param {string} type - 'draw' or 'base64'
+	   * @param {string} base64 - image data in base64 format
+	   * @returns Promise for the response
+	   */
+	  draw(key, type = 'draw', base64=null) {
+	    return this._call('draw', {
+	      type,
+	      key,
+	      base64
+	    });
 	  }
 
 	  /**
@@ -28185,12 +28203,40 @@ function requirePlugin () {
 	    console.log('Received message from UI:', payload);
 	    return 'Hello from plugin!'
 	});
-	  
+
+	pluginClient.on('device.initData', (data) => {
+	    console.log('Received device.initdata:', data);
+	});
+
+	pluginClient.on('device.status', (data) => {
+	    console.log('Received device.status:', data);
+	});
+
+	pluginClient.on('device.newPage', (data) => {
+	    console.log('Received device.newpage:', data);
+	    for (let key of data) {
+	        key.style.showIcon = false;
+	        key.style.showTitle = true;
+	        key.title = 'Click Me!';
+	        pluginClient.draw(key, 'draw');
+	    }
+	});
+
+	var counter = 1;
+	pluginClient.on('device.userData', (data) => {
+	    console.log('Received device.userdata:', data);
+	    const key = data.key;
+	    key.style.showIcon = false;
+	    key.style.showTitle = true;
+	    key.title = `${counter++}`;
+	    pluginClient.draw(key, 'draw');
+	});
+
 	pluginClient.start();
 
 
 	setInterval(async () => {
-	    const result = await pluginClient.call({
+	    const result = await pluginClient._call('plugin-message', {
 	        data: 'Hello from plugin!'
 	    });
 	    console.log('Received response:', result);

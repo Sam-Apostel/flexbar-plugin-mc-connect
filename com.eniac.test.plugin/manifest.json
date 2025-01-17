@@ -36,6 +36,9 @@
             {
                 "title": "Screenshot",
                 "id": "screenshot",
+                "config": {
+                    "clickable": true
+                },
                 "style": {
                     "icon": "mdi mdi-fit-to-screen",
                     "width": 240
