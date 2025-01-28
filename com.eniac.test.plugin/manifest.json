@@ -1,5 +1,6 @@
 {
     "name": "Test",
+    "uuid": "com.eniac.test",
     "version": "1.0.0",
     "author": "ENIAC",
     "entry": "backend/plugin.js",
@@ -35,9 +36,13 @@
         "children": [
             {
                 "title": "Screenshot",
-                "id": "screenshot",
+                "cid": "com.eniac.test.screenshot",
                 "config": {
-                    "clickable": true
+                    "keyType": "default",
+                    "clickable": true,
+                    "platform": [
+                        "windows"
+                    ]
                 },
                 "style": {
                     "icon": "mdi mdi-fit-to-screen",
@@ -48,7 +53,76 @@
                 }
             },
             {
+                "title": "Cycle Button",
+                "cid": "com.eniac.test.cyclebutton",
+                "config": {
+                    "keyType": "multiState",
+                    "platform": [
+                        "windows"
+                    ]
+                },
+                "style": {
+                    "icon": "mdi mdi-fit-to-screen",
+                    "width": 240,
+                    "multiStyle": [
+                        {
+                            "icon": "mdi mdi-record-circle-outline"
+                        },
+                        {
+                            "icon": "mdi mdi-stop-circle",
+                            "bgColor": "#F44336"
+                        }
+                    ]
+                },
+                "data": {
+                    
+                }
+            },
+            {
+                "title": "Slider",
+                "cid": "com.eniac.test.slider",
+                "config": {
+                    "keyType": "slider",
+                    "platform": [
+                        "windows"
+                    ]
+                },
+                "style": {
+                    "icon": "mdi mdi-tune-variant",
+                    "width": 240,
+                    "slider": {
+                        "color": "#ffffff",
+                        "width": 260,
+                        "format": "%0.1f %%",
+                        "min": 0,
+                        "max": 100,
+                        "decimals": 1
+                    }
+                },
+                "data": {
+                    
+                }
+            },
+            {
+                "title": "wheel",
+                "cid": "com.eniac.test.wheel",
+                "config": {
+                    "keyType": "wheel"
+                },
+                "style": {
+                    "icon": "mdi mdi-tire",
+                    "width": 400,
+                    "wheel": {
+                        "step": 5
+                    }
+                },
+                "data": {
+                    
+                }
+            },
+            {
                 "title": "Submenu",
+                "cid": "com.eniac.navigation.page",
                 "style": {
                     "icon": "mdi mdi-folder-outline",
                     "width": 240
@@ -60,7 +134,7 @@
                 "children": [
                     {
                         "title": "Screen Mirror",
-                        "id": "screen_mirror",
+                        "cid": "com.eniac.test.screen_mirror",
                         "style": {
                             "icon": "mdi mdi-monitor-screenshot",
                             "width": 240
@@ -72,6 +146,5 @@
                 ]
             }
         ]
-    },
-    "uuid": "com.eniac.test"
+    }
 }

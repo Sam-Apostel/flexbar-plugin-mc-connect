@@ -6,7 +6,8 @@
     "plugin:unlink": "flexcli plugin unlink --uuid com.eniac.test --silent",
     "plugin:link": "flexcli plugin link --path com.eniac.test.plugin --uuid com.eniac.test",
     "plugin:restart": "flexcli plugin restart --uuid=com.eniac.test",
-    "plugin:debug": "flexcli plugin debug --uuid=com.eniac.test"
+    "plugin:debug": "flexcli plugin debug --uuid=com.eniac.test",
+    "plugin:validate": "flexcli plugin validate --path com.eniac.test.plugin"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.0",
