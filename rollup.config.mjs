@@ -4,6 +4,7 @@ import terser from "@rollup/plugin-terser";
 import path from "node:path";
 import url from "node:url";
 import json from '@rollup/plugin-json';
+import { glob } from 'glob'
 const isWatching = !!process.env.ROLLUP_WATCH;
 const flexPlugin = "com.eniac.test.plugin";
 
@@ -25,7 +26,10 @@ const config = {
 			name: "watch-externals",
 			buildStart: function () {
 				this.addWatchFile(`${flexPlugin}/manifest.json`);
-				this.addWatchFile(`${flexPlugin}/ui/screenshot.vue`);
+				const vueFiles = glob.sync(`${flexPlugin}/ui/*.vue`);
+                vueFiles.forEach((file) => {
+                    this.addWatchFile(file);
+                });
 			},
 		},
 		nodeResolve({

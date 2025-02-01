@@ -10,7 +10,7 @@
         "version": "1.0.0"
     },
     "software": {
-        "minimumVersion": "0.1.5"
+        "minimumVersion": "1.0.0"
     },
     "os": [
         {
@@ -35,25 +35,48 @@
         },
         "children": [
             {
-                "title": "Screenshot",
-                "cid": "com.eniac.test.screenshot",
+                "title": "$APITest.Title",
+                "tip": "$APITest.Tip",
+                "cid": "com.eniac.test.apitest",
                 "config": {
                     "keyType": "default",
                     "clickable": true,
                     "platform": [
-                        "windows"
+                        "windows",
+                        "mac"
                     ]
                 },
                 "style": {
-                    "icon": "mdi mdi-fit-to-screen",
+                    "icon": "mdi mdi-test-tube",
                     "width": 240
                 },
                 "data": {
-                    "path": ""
                 }
             },
             {
-                "title": "Cycle Button",
+                "title": "$Counter.Title",
+                "tip": "$Counter.Tip",
+                "cid": "com.eniac.test.counter",
+                "config": {
+                    "keyType": "default",
+                    "clickable": true,
+                    "platform": [
+                        "windows",
+                        "mac"
+                    ]
+                },
+                "style": {
+                    "icon": "mdi mdi-gesture-tap-button",
+                    "width": 240
+                },
+                "data": {
+                    "rangeMin": "0",
+                    "rangeMax": "100"
+                }
+            },
+            {
+                "title": "$CycleButton.Title",
+                "tip": "$CycleButton.Tip",
                 "cid": "com.eniac.test.cyclebutton",
                 "config": {
                     "keyType": "multiState",
@@ -62,7 +85,7 @@
                     ]
                 },
                 "style": {
-                    "icon": "mdi mdi-fit-to-screen",
+                    "icon": "mdi mdi-record-circle-outline",
                     "width": 240,
                     "multiStyle": [
                         {
@@ -79,7 +102,8 @@
                 }
             },
             {
-                "title": "Slider",
+                "title": "$Slider.Title",
+                "tip": "$Slider.Tip",
                 "cid": "com.eniac.test.slider",
                 "config": {
                     "keyType": "slider",
@@ -104,7 +128,8 @@
                 }
             },
             {
-                "title": "wheel",
+                "title": "$Wheel.Title",
+                "tip": "$Wheel.Tip",
                 "cid": "com.eniac.test.wheel",
                 "config": {
                     "keyType": "wheel"
@@ -132,19 +157,63 @@
                     "win": ""
                 },
                 "children": [
-                    {
-                        "title": "Screen Mirror",
-                        "cid": "com.eniac.test.screen_mirror",
-                        "style": {
-                            "icon": "mdi mdi-monitor-screenshot",
-                            "width": 240
-                        },
-                        "data": {
-                            "path": ""
-                        }
-                    }
+                    
                 ]
             }
         ]
+    },
+    "local": {
+        "en": {
+            "APITest": {
+                "Title": "API Test",
+                "Tip": "Test all APIs of FlexDesigner SDK",
+                "UI": {
+                    "Title": "API Test Page",
+                    "Description": "Click the button to run tests. The results will be displayed in the box above.",
+                    "TestResults": "Test Results",
+                    "TestItemDescriptions": {
+                        "sendToBackend": "Sends a message to the backend and receives a response.",
+                        "Logger Test": "Tests various logging methods (debug, info, warn, error).",
+                        "getAppInfo": "Retrieves application version and platform information.",
+                        "saveFile": "Saves a file to the app's data path.",
+                        "openFile": "Opens a file previously saved to the app's data path.",
+                        "getOpenedWindows": "Retrieves a list of opened windows in the application.",
+                        "getDeviceStatus": "Fetches the current device status.",
+                        "pickColor": "Allows the user to select a color and returns the hex value.",
+                        "takeScreenshot": "Captures a screenshot and provides metadata (base64 and bounds).",
+                        "showSnackbarMessage": "Displays a snackbar message with a custom message.",
+                        "dialog.showOpenDialog": "Opens a dialog to select a directory to open.",
+                        "dialog.showSaveDialog": "Opens a dialog to select a location to save a file.",
+                        "dialog.showMessageBox": "Displays a message box with custom message.",
+                        "dialog.showErrorBox": "Displays an error box with a message.",
+                        "app.getAppPath": "Retrieves the path where the app is installed.",
+                        "app.getPath": "Gets a specific path (e.g., appData) used by the app.",
+                        "screen.getCursorScreenPoint": "Fetches the current cursor position on the screen.",
+                        "screen.getPrimaryDisplay": "Retrieves information about the primary screen display.",
+                        "screen.getAllDisplays": "Gets information about all connected screen displays."
+                      }
+                }
+            },
+            "Counter": {
+                "Title": "Tap Counter",
+                "Tip": "Default keys with customizable drawable content",
+                "UI": {
+                    "RangeMin": "Minimum Value",
+                    "RangeMax": "Maximum Value"
+                }
+            },
+            "CycleButton": {
+                "Title": "Cycle Button",
+                "Tip": "Cycle through different states"
+            },
+            "Slider": {
+                "Title": "Slider",
+                "Tip": "Slider with customizable range and format"
+            },
+            "Wheel": {
+                "Title": "Wheel",
+                "Tip": "Wheel with customizable step"
+            }
+        }
     }
 }

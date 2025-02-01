@@ -28205,13 +28205,23 @@ function requirePlugin_client () {
 	hasRequiredPlugin_client = 1;
 	// plugin_client.js
 	// This file handles plugin-side WebSocket logic.
+
 	const WebSocket = requireWs();
 	const PluginCommand = requirePlugin_command();
 	const defaultLogger = requireLogger();
-	const logger = defaultLogger.child({ scope: 'PluginClient' });
+	const logger = defaultLogger.child({ scope: 'plugin' });
+	const uiLogger = defaultLogger.child({ scope: 'UI' });
 	const minimist = requireMinimist();
 
-	class PluginClient {
+	/**
+	 * @brief Plugin client class for managing WebSocket connections and interactions with the server.
+	 *
+	 * Detailed description:
+	 * This class manages the connection to the WebSocket server, sends commands, 
+	 * and handles responses. It also allows registering message handlers for specific
+	 * message types.
+	 */
+	class Plugin {
 	  constructor() {
 	    this.serverUrl = ''; // Will be set in the start method
 	    this.ws = null;
@@ -28220,7 +28230,15 @@ function requirePlugin_client () {
 	  }
 
 	  /**
-	   * Starts the WebSocket connection by extracting port and uid from command-line arguments
+	   * @brief Starts the WebSocket connection by extracting port and uid from command-line arguments.
+	   *
+	   * Detailed description:
+	   * The method parses the command-line arguments for `port`, `uid`, and `dir` options, 
+	   * and uses them to establish a WebSocket connection with the server. It sends an
+	   * initial "startup" command once connected.
+	   *
+	   * @throws {Error} If port, uid, or dir are not provided in the command-line arguments.
+	   * @return {void}
 	   */
 	  start() {
 	    const { port, uid, dir } = this._parseCommandLineArgs();
@@ -28256,14 +28274,38 @@ function requirePlugin_client () {
 	      logger.error(`WebSocket error: ${err.message}`);
 	      process.exit(0);
 	    });
+
+	    // Register default handlers
+	    this.on('ui.log', (payload) => {
+	      /*
+	      payload: {
+	        level: 'debug', 'info' | 'warn' | 'error',
+	        msg: 'Some message'
+	      }
+	      */
+	      try {
+	        uiLogger[payload.level](payload.msg);
+	      } catch (error) {
+	        logger.warn(`Invalid log level: ${payload.level}, message: ${payload.msg}`);
+	      }
+	    });
 	  }
 
 	  /**
-	   * Parses command-line arguments to extract port, uid, and dir.
-	   * Supports:
-	   *   --port=8080 --uid=12345 --dir=/some/path
-	   *   -p 8080 -u 12345 -d /some/path
-	   * @returns {Object} An object containing port, uid, dir
+	   * @brief Parses command-line arguments to extract port, uid, and dir.
+	   *
+	   * Detailed description:
+	   * This method uses the `minimist` library to parse command-line arguments, 
+	   * returning an object with `port`, `uid`, and `dir` properties.
+	   *
+	   * @returns {Object} An object containing the parsed arguments:
+	   * ```
+	   * {
+	   *   port: <number|string>, 
+	   *   uid: <string>, 
+	   *   dir: <string>
+	   * }
+	   * ```
 	   */
 	  _parseCommandLineArgs() {
 	    const argv = minimist(process.argv.slice(2), {
@@ -28282,11 +28324,16 @@ function requirePlugin_client () {
 	  }
 
 	  /**
-	   * Sends a request to the server
-	   * @param {string} command - The command to send
-	   * @param {Object} payload - The payload of the request
-	   * @param {number} timeout - Timeout in milliseconds
-	   * @returns {Promise} Resolves with the response payload or rejects with an error
+	   * @brief Sends a request to the server with a specific command and payload.
+	   *
+	   * Detailed description:
+	   * The method creates a `PluginCommand` and sends it via WebSocket. 
+	   * It also sets a timeout to reject the request if no response is received.
+	   *
+	   * @param {string} command - The command to send to the server.
+	   * @param {Object} payload - The payload to send along with the command.
+	   * @param {number} timeout - The timeout in milliseconds before rejecting the request. Default is 5000 ms.
+	   * @returns {Promise<any>} A promise that resolves with the response payload or rejects with an error.
 	   */
 	  _call(command, payload, timeout = 5000) {
 	    return new Promise((resolve, reject) => {
@@ -28294,41 +28341,103 @@ function requirePlugin_client () {
 	      this.pendingCalls[cmd.uuid] = {
 	        resolve,
 	        reject,
-	        timer: setTimeout(() => {
-	          delete this.pendingCalls[cmd.uuid];
-	          reject(new Error('Request timed out'));
-	        }, timeout)
+	        timer: null
 	      };
+	      if (timeout > 0) {
+	        this.pendingCalls[cmd.uuid].timer = setTimeout(() => {
+	          delete this.pendingCalls[cmd.uuid];
+	          reject(new Error(`Request timed out, command: ${command}, payload: ${JSON.stringify(payload)}`));
+	        }, timeout);
+	      }
 	      this.ws.send(JSON.stringify(cmd.toJSON()));
 	    });
 	  }
 
 	  /**
-	   * Registers a handler for incoming messages of a specific type
-	   * @param {string} type - The type of the message to handle
-	   * @param {Function} handler - The handler function
+	   * @brief Handles incoming WebSocket messages.
+	   *
+	   * Detailed description:
+	   * The method processes messages from the server, checking if they are 
+	   * responses to previous requests, or if they are broadcasts that need to be handled 
+	   * by registered message handlers.
+	   *
+	   * @param {string} msg - The received message in string format.
+	   * @returns {void}
+	   */
+	  _handleMessage(msg) {
+	    let cmd;
+	    msg = msg.toString('utf8');
+	    try {
+	      cmd = PluginCommand.fromJSON(msg);
+	      // logger.debug(`Received message: ${cmd.toString()}`);
+	    } catch (e) {
+	      logger.error(`Invalid message format: ${msg}`);
+	      return;
+	    }
+
+	    // If it's a response to a call()
+	    if (this.pendingCalls[cmd.uuid]) {
+	      const { resolve, reject, timer } = this.pendingCalls[cmd.uuid];
+	      if (timer) {
+	        clearTimeout(timer);
+	      }
+	      delete this.pendingCalls[cmd.uuid];
+
+	      if (cmd.status === 'success') resolve(cmd.payload);
+	      else reject(new Error(cmd.error || 'Unknown error'));
+	      return;
+	    }
+
+	    // If it's a broadcast or direct send
+	    const handler = this.handlers[cmd.type];
+	    if (handler) {
+	      const result = handler(cmd.payload);
+	      const response = new PluginCommand('response', result, cmd.uuid, 'success');
+	      this.ws.send(JSON.stringify(response.toJSON()));
+	    }
+	  }
+
+	  /**
+	   * @brief Registers a handler for incoming messages of a specific type.
+	   *
+	   * Detailed description:
+	   * This method allows the registration of handlers for specific message types, 
+	   * which are invoked when a message of that type is received from the server.
+	   *
+	   * @param {string} type - The message type to handle.
+	   * @param {Function} handler - The handler function that processes the message payload.
+	   * @returns {void}
 	   */
 	  on(type, handler) {
 	    this.handlers[type] = handler;
 	  }
 
 	  /**
-	   * Unregisters a handler for a specific message type
-	   * @param {string} type - The type of the message
+	   * @brief Unregisters a handler for a specific message type.
+	   *
+	   * @param {string} type - The message type to unregister the handler for.
+	   * @returns {void}
 	   */
 	  off(type) {
 	    delete this.handlers[type];
 	  }
 
 	  /**
-	   * Draw image on a key
-	   * 
-	   * @param {Object} key - The key object received from event device.newPage or device.userData
-	   * @param {string} type - 'draw' or 'base64'
-	   * @param {string} base64 - image data in base64 format
-	   * @returns Promise for the response
+	   * @brief Draw an image on a key.
+	   *
+	   * Detailed description:
+	   * This method sends a draw command to the server, allowing the image data in 
+	   * base64 format to be drawn on the specified key.
+	   *
+	   * @param {Object} key - The key object received from the event `device.newPage` or `device.userData`.
+	   * @param {string} type - The type of drawing operation. Possible values:
+	   * ```
+	   * "draw" | "base64"
+	   * ```
+	   * @param {string} [base64=null] - The base64 image data. Only used if `type` is "base64".
+	   * @returns {Promise<any>} A promise that resolves with the server response.
 	   */
-	  draw(key, type = 'draw', base64=null) {
+	  draw(key, type = 'draw', base64 = null) {
 	    return this._call('draw', {
 	      type,
 	      key,
@@ -28337,21 +28446,29 @@ function requirePlugin_client () {
 	  }
 
 	  /**
-	   * Set key data
-	   * 
-	   * @param {Object} key - The key object received from event device.newPage or device.userData
-	   * @param {Object} data - The data to set, should match with key type. can be one of the following:
-	   * Cycle/State Plugin Key
-	   * {
-	   *  state: Number
-	   *  message: String (optional, shown when state is updated)
-	   * }
-	   * 
-	   * Slider
-	   * {
-	   *  value: Number
-	   * }
-	   * @returns Promise for the response
+	   * @brief Set data for a specific key.
+	   *
+	   * Detailed description:
+	   * This method sends a command to update the state or value of a specified key 
+	   * based on the key type. It supports "multiState" and "slider" key types.
+	   *
+	   * @param {Object} key - The key object received from the event `device.newPage` or `device.userData`.
+	   * @param {Object} data - The data to set on the key. The format of `data` depends on the key type:
+	   *   - For "multiState" keys: 
+	   *   ```
+	   *   {
+	   *     state: <Number>,
+	   *     message: <String> (optional)
+	   *   }
+	   *   ```
+	   *   - For "slider" keys:
+	   *   ```
+	   *   {
+	   *     value: <Number>
+	   *   }
+	   *   ```
+	   * @throws {Error} If the provided data is invalid for the given key type.
+	   * @returns {Promise<any>} A promise that resolves with the server response.
 	   */
 	  set(key, data) {
 	    // validate data
@@ -28378,47 +28495,228 @@ function requirePlugin_client () {
 	  }
 
 	  /**
-	   * Handles incoming WebSocket messages
-	   * @param {string} msg - The received message
+	   * @brief Show a snackbar message in the parent window.
+	   *
+	   * Detailed description:
+	   * Displays a transient message (snackbar) with a specified color and timeout.
+	   *
+	   * @param {string} color - The color type for the message. Possible values:
+	   * ```
+	   * "success" | "info" | "warning" | "error"
+	   * ```
+	   * @param {string} message - The message content to display
+	   * @param {number} [timeout=3000] - Duration in milliseconds before hiding the message
+	   * @return {Promise<any>} A promise that resolves with the response.
 	   */
-	  _handleMessage(msg) {
-	    let cmd;
-	    msg = msg.toString('utf8');
-	    try {
-	      cmd = PluginCommand.fromJSON(msg);
-	      logger.debug(`Received message: ${cmd.toString()}`);
-	    } catch (e) {
-	      logger.error(`Invalid message format: ${msg}`);
-	      return;
-	    }
+	  showSnackbarMessage(color, message, timeout = 3000) {
+	    return this._call('ui-operation', {
+	      type: 'showSnackbarMessage',
+	      data: {
+	        color,
+	        message,
+	        timeout
+	      }
+	    });
+	  }
 
-	    // If it's a response to a call()
-	    if (this.pendingCalls[cmd.uuid]) {
-	      const { resolve, reject, timer } = this.pendingCalls[cmd.uuid];
-	      clearTimeout(timer);
-	      delete this.pendingCalls[cmd.uuid];
+	  /**
+	   * @brief Call Electron API, see https://www.electronjs.org/docs/latest/api/app for details.
+	   *
+	   * Detailed description:
+	   * This function allows you to call various Electron APIs through a single interface.
+	   *
+	   * @param {string} api - The Electron API method to call. Possible values:
+	   * ```
+	   * dialog.showOpenDialog
+	   * dialog.showSaveDialog
+	   * dialog.showMessageBox
+	   * dialog.showErrorBox
+	   * app.getAppPath
+	   * app.getPath
+	   * screen.getCursorScreenPoint
+	   * screen.getPrimaryDisplay
+	   * screen.getAllDisplays
+	   * screen.getDisplayNearestPoint
+	   * screen.getDisplayMatching
+	   * screen.screenToDipPoint
+	   * screen.dipToScreenPoint
+	   * ```
+	   * @param {...any} args - Arguments to be passed to the Electron API call
+	   * @returns {Promise<any>} A promise that resolves exactly as the Electron API returns
+	   * @throws {Error} Throws an error if the call fails
+	   */
+	  electronAPI(api, ...args) {
+	    return this._call(
+	      "api-call",
+	      {
+	        api: "callElectronAPI",
+	        args: { api, args },
+	      },
+	      0
+	    );
+	  }
 
-	      if (cmd.status === 'success') resolve(cmd.payload);
-	      else reject(new Error(cmd.payload || 'Unknown error'));
-	      return;
-	    }
+	  /**
+	   * @brief Get application information.
+	   *
+	   * Detailed description:
+	   * This function retrieves the application version and platform.
+	   *
+	   * @returns {Promise<Object>} A promise that resolves with the app info in JSON format:
+	   * ```
+	   * {
+	   *   "version": "vX.X.X",
+	   *   "platform": "darwin | win32 | linux"
+	   * }
+	   * ```
+	   * @throws {Error} Throws an error if the call fails
+	   */
+	  getAppInfo() {
+	    return this._call(
+	      "api-call",
+	      {
+	        api: "getAppInfo",
+	        args: null,
+	      },
+	      0
+	    );
+	  }
 
-	    // If it's a broadcast or direct send
-	    const handler = this.handlers[cmd.type];
-	    if (handler) {
-	      const result = handler(cmd.payload);
-	      const response = new PluginCommand('response', result, cmd.uuid, 'success');
-	      this.ws.send(JSON.stringify(response.toJSON()));
-	    }
+	  /**
+	   * @brief Open a file from the given path.
+	   *
+	   * Detailed description:
+	   * Retrieves the file content if successful; otherwise throws an error.
+	   *
+	   * @param {string} path - The file path
+	   * @returns {Promise<string|Buffer>} A promise that resolves with the file content
+	   * @throws {Error} Throws an error if file opening fails
+	   */
+	  openFile(path) {
+	    return this._call(
+	      "api-call",
+	      {
+	        api: "openFile",
+	        args: { path },
+	      },
+	      0
+	    );
+	  }
+
+	  /**
+	   * @brief Save data to a specified file path.
+	   *
+	   * Detailed description:
+	   * Saves string or Buffer data to the provided file path and returns a status.
+	   *
+	   * @param {string} path - The file path
+	   * @param {string|Buffer} data - The file content
+	   * @returns {Promise<Object>} A promise that resolves with the result in JSON format:
+	   * ```
+	   * {
+	   *   "status": "success" | "error",
+	   *   "error": "Error message if status is 'error'"
+	   * }
+	   * ```
+	   * @throws {Error} Throws an error if saving fails
+	   */
+	  saveFile(path, data) {
+	    return this._call(
+	      "api-call",
+	      {
+	        api: "pluginSaveFile",
+	        args: { path, data },
+	      },
+	      0
+	    );
+	  }
+
+	  /**
+	   * @brief Get the list of opened windows.
+	   *
+	   * Detailed description:
+	   * Retrieves an array of window objects in JSON format, each containing details
+	   * such as `platform`, `id`, `title`, `owner`, `bounds`, and `memoryUsage`.
+	   *
+	   * @returns {Promise<Object[]>} A promise that resolves to an array of window objects, for example:
+	   * ```
+	   * [
+	   *   {
+	   *     "platform": "windows",
+	   *     "id": 592082,
+	   *     "title": "Flexbar Designer",
+	   *     "owner": {
+	   *       "processId": 11860,
+	   *       "path": "Path to the executable",
+	   *       "name": "Flexbar Designer"
+	   *     },
+	   *     "bounds": {
+	   *       "x": 154,
+	   *       "y": 0,
+	   *       "width": 2252,
+	   *       "height": 1528
+	   *     },
+	   *     "memoryUsage": 188665856
+	   *   }
+	   * ]
+	   * ```
+	   * @throws {Error} Throws an error if the call fails
+	   */
+	  getOpenedWindows() {
+	    return this._call(
+	      "api-call",
+	      {
+	        api: "getOpenedWindows",
+	        args: null,
+	      },
+	      0
+	    );
+	  }
+
+	  /**
+	   * @brief Get the device status.
+	   *
+	   * Detailed description:
+	   * Returns a JSON object containing various status fields such as
+	   * `connecting`, `connected`, `serialNumber`, `platform`, `profileVersion`,
+	   * and `fwVersion`.
+	   *
+	   * @returns {Promise<Object>} A promise that resolves to a JSON object, for example:
+	   * ```
+	   * {
+	   *   "connecting": true | false,
+	   *   "connected": true | false,
+	   *   "serialNumber": "XXXXXX",
+	   *   "platform": "win32 | darwin | linux",
+	   *   "profileVersion": "vX.X.X",
+	   *   "fwVersion": "vX.X.X"
+	   * }
+	   * ```
+	   * @throws {Error} Throws an error if the call fails
+	   */
+	  getDeviceStatus() {
+	    return this._call(
+	      "api-call",
+	      {
+	        api: "getDeviceStatus",
+	        args: null,
+	      },
+	      0
+	    );
 	  }
 	}
 
 	/**
-	 * pluginClient is the singleton instance of PluginClient.
+	 * @brief The singleton instance of the plugin.
+	 *
+	 * This is the main entry point for interacting with the Plugin class. All methods
+	 * on the Plugin class are accessible through this instance.
+	 *
+	 * @type {Plugin}
 	 */
-	const pluginClient = new PluginClient();
+	const plugin = new Plugin();
 
-	plugin_client = pluginClient;
+	plugin_client = plugin;
 	return plugin_client;
 }
 
@@ -28428,14 +28726,14 @@ var hasRequiredSrc;
 function requireSrc () {
 	if (hasRequiredSrc) return src;
 	hasRequiredSrc = 1;
-	const pluginClient = requirePlugin_client();
+	const plugin = requirePlugin_client();
 	const logger = requireLogger();
 	const { fileURLToPath } = require$$7;
 
 	const resourcesPath = fileURLToPath(new URL('../resources', import.meta.url));
 	const pluginPath = fileURLToPath(new URL('../', import.meta.url));
 
-	src = { pluginClient, logger, resourcesPath, pluginPath };
+	src = { plugin, logger, resourcesPath, pluginPath };
 	return src;
 }
 
@@ -28444,34 +28742,34 @@ var hasRequiredPlugin;
 function requirePlugin () {
 	if (hasRequiredPlugin) return plugin$1;
 	hasRequiredPlugin = 1;
-	const { pluginClient, logger, pluginPath, resourcesPath } = requireSrc();
+	const { plugin, logger, pluginPath, resourcesPath } = requireSrc();
 
 	logger.warn(pluginPath, resourcesPath);
 
-	pluginClient.on('ui-message', (payload) => {
+	plugin.on('ui.message', (payload) => {
 	    console.log('Received message from UI:', payload);
-	    return 'Hello from plugin!'
+	    return 'Hello from plugin backend!'
 	});
 
-	pluginClient.on('device.init', (data) => {
+	plugin.on('device.init', (data) => {
 	    console.log('Received device.init:', data);
 	});
 
-	pluginClient.on('device.status', (data) => {
+	plugin.on('device.status', (data) => {
 	    console.log('Received device.status:', data);
 	});
 
-	pluginClient.on('plugin.alive', (data) => {
+	plugin.on('plugin.alive', (data) => {
 	    console.log('Received plugin.alive:', data);
 	    for (let key of data) {
 	        if (key.cid === 'com.eniac.test.screenshot') {
 	            key.style.showIcon = false;
 	            key.style.showTitle = true;
 	            key.title = 'Click Me!';
-	            pluginClient.draw(key, 'draw');
+	            plugin.draw(key, 'draw');
 	        }
 	        else if (key.cid === 'com.eniac.test.slider') {
-	            pluginClient.set(key, {
+	            plugin.set(key, {
 	                value: 50
 	            });
 	        }
@@ -28480,11 +28778,10 @@ function requirePlugin () {
 
 
 	var counter = 1;
-	var cycleKey = null;
-	pluginClient.on('plugin.data', (data) => {
+	plugin.on('plugin.data', (data) => {
 	    console.log('Received plugin.data:', data);
 	    if (data.key.cid === "com.eniac.test.cyclebutton") {
-	        cycleKey = data.key;
+	        data.key;
 	        return {
 	            "status": "error",
 	            "message": "This is an error message"
@@ -28495,25 +28792,45 @@ function requirePlugin () {
 	        key.style.showIcon = false;
 	        key.style.showTitle = true;
 	        key.title = `${counter++}`;
-	        pluginClient.draw(key, 'draw');
+	        plugin.draw(key, 'draw');
 	    }
 	});
 
-	pluginClient.start();
+	plugin.start();
 
-	var state = 0;
-	setInterval(async () => {
-	    const result = await pluginClient._call('plugin-message', {
-	        data: 'Hello from plugin!'
-	    });
-	    console.log('Received response:', result);
-	    if (cycleKey) {
-	        pluginClient.set(cycleKey, {
-	            state
-	        });
-	        state = (state + 1) % 3;
-	    }
-	}, 5000);
+	// setTimeout(async () => {
+	//     logger.info('Test plugin API calls')
+	//     logger.info('showSnackbarMessage', await plugin.showSnackbarMessage('info', 'Hello from plugin!'))
+	//     logger.info('getAppInfo', await plugin.getAppInfo())
+	//     logger.info('saveFile', await plugin.saveFile(path.resolve(pluginPath, 'test.txt'), 'Hello world!!!'))
+	//     logger.info('openFile', await plugin.openFile(path.resolve(pluginPath, 'test.txt')))
+	//     logger.info('getOpenedWindows', await plugin.getOpenedWindows())
+	//     logger.info('getDeviceStatus', await plugin.getDeviceStatus())
+	//     logger.info('dialog.showOpenDialog', await plugin.electronAPI('dialog.showOpenDialog', { properties: ["openDirectory"] }))
+	//     logger.info('dialog.showSaveDialog', await plugin.electronAPI('dialog.showSaveDialog', { properties: ["openFile"] }))
+	//     logger.info('dialog.showMessageBox', await plugin.electronAPI('dialog.showMessageBox', { type: "info", message: "Hello from plugin!" }))
+	//     logger.info('dialog.showErrorBox', await plugin.electronAPI('dialog.showErrorBox', "Error", "This is an error message"))
+	//     logger.info('app.getAppPath', await plugin.electronAPI('app.getAppPath'))
+	//     logger.info('app.getPath', await plugin.electronAPI('app.getPath', "temp"))
+	//     logger.info('screen.getCursorScreenPoint', await plugin.electronAPI('screen.getCursorScreenPoint'))
+	//     logger.info('screen.getPrimaryDisplay', await plugin.electronAPI('screen.getPrimaryDisplay'))
+	//     logger.info('screen.getAllDisplays', await plugin.electronAPI('screen.getAllDisplays'))
+
+	// }, 2000);
+
+	// var state = 0
+	// setInterval(async () => {
+	//     const result = await plugin._call('plugin-message', {
+	//         data: 'Hello from plugin!'
+	//     })
+	//     console.log('Received response:', result)
+	//     if (cycleKey) {
+	//         plugin.set(cycleKey, {
+	//             state
+	//         })
+	//         state = (state + 1) % 3
+	//     }
+	// }, 5000);
 	return plugin$1;
 }
 
