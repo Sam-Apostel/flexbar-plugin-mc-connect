@@ -3,7 +3,7 @@
     "uuid": "com.eniac.test",
     "version": "1.0.0",
     "author": "ENIAC",
-    "entry": "backend/plugin.js",
+    "entry": "backend/plugin.cjs",
     "description": "test",
     "repo": "https://github.com/ENIAC-Tech/FlexDesigner-SDK",
     "sdk": {
@@ -34,25 +34,6 @@
             "icon": "mdi mdi-puzzle"
         },
         "children": [
-            {
-                "title": "$APITest.Title",
-                "tip": "$APITest.Tip",
-                "cid": "com.eniac.test.apitest",
-                "config": {
-                    "keyType": "default",
-                    "clickable": true,
-                    "platform": [
-                        "windows",
-                        "mac"
-                    ]
-                },
-                "style": {
-                    "icon": "mdi mdi-test-tube",
-                    "width": 240
-                },
-                "data": {
-                }
-            },
             {
                 "title": "$Counter.Title",
                 "tip": "$Counter.Tip",
@@ -89,11 +70,48 @@
                     "width": 240,
                     "multiStyle": [
                         {
-                            "icon": "mdi mdi-record-circle-outline"
+                            "icon": "mdi mdi-numeric-0-box",
+                            "bgColor": "#D6582A"
                         },
                         {
-                            "icon": "mdi mdi-stop-circle",
-                            "bgColor": "#F44336"
+                            "icon": "mdi mdi-numeric-1-box",
+                            "bgColor": "#CD3B42"
+                        },
+                        {
+                            "icon": "mdi mdi-numeric-2-box",
+                            "bgColor": "#C33DA3"
+                        },
+                        {
+                            "icon": "mdi mdi-numeric-3-box",
+                            "bgColor": "#722FF2"
+                        },
+                        {
+                            "icon": "mdi mdi-numeric-4-box",
+                            "bgColor": "#5A52F0"
+                        },
+                        {
+                            "icon": "mdi mdi-numeric-5-box",
+                            "bgColor": "#4A80BA"
+                        },
+                        {
+                            "icon": "mdi mdi-numeric-6-box",
+                            "bgColor": "#6CC8B9"
+                        },
+                        {
+                            "icon": "mdi mdi-numeric-7-box",
+                            "bgColor": "#62B864"
+                        },
+                        {
+                            "icon": "mdi mdi-numeric-8-box",
+                            "bgColor": "#B5DC49"
+                        },
+                        {
+                            "icon": "mdi mdi-numeric-9-box",
+                            "bgColor": "#C3B544"
+                        },
+                        {
+                            "icon": "mdi mdi-numeric-10-box",
+                            "bgColor": "#EA9D39"
                         }
                     ]
                 },
@@ -113,7 +131,7 @@
                 },
                 "style": {
                     "icon": "mdi mdi-tune-variant",
-                    "width": 240,
+                    "width": 360,
                     "slider": {
                         "color": "#ffffff",
                         "width": 260,
@@ -146,7 +164,7 @@
                 }
             },
             {
-                "title": "Submenu",
+                "title": "$Submenu.Title",
                 "cid": "com.eniac.navigation.page",
                 "style": {
                     "icon": "mdi mdi-folder-outline",
@@ -157,7 +175,25 @@
                     "win": ""
                 },
                 "children": [
-                    
+                    {
+                        "title": "$APITest.Title",
+                        "tip": "$APITest.Tip",
+                        "cid": "com.eniac.test.apitest",
+                        "config": {
+                            "keyType": "default",
+                            "clickable": false,
+                            "platform": [
+                                "windows",
+                                "mac"
+                            ]
+                        },
+                        "style": {
+                            "icon": "mdi mdi-test-tube",
+                            "width": 240
+                        },
+                        "data": {
+                        }
+                    }
                 ]
             }
         ]
@@ -173,6 +209,7 @@
                     "TestResults": "Test Results",
                     "TestItemDescriptions": {
                         "sendToBackend": "Sends a message to the backend and receives a response.",
+                        "Backend API Test": "Tests all backend APIs.",
                         "Logger Test": "Tests various logging methods (debug, info, warn, error).",
                         "getAppInfo": "Retrieves application version and platform information.",
                         "saveFile": "Saves a file to the app's data path.",
@@ -213,6 +250,9 @@
             "Wheel": {
                 "Title": "Wheel",
                 "Tip": "Wheel with customizable step"
+            },
+            "Submenu": {
+                "Title": "Submenu"
             }
         }
     }

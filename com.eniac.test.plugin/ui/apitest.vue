@@ -28,7 +28,12 @@
             <p>{{ $tm('APITest.UI.TestItemDescriptions')[callback.title] }}</p>
           </v-card-text>
           <v-card-actions>
-            <v-btn color="orange" @click="executeTest(callback)">Test</v-btn>
+            <v-btn color="orange" @click="executeTest(callback)" :loading="testing">Test
+              <template v-slot:loader>
+              <v-progress-circular color="orange" size="30"
+                indeterminate></v-progress-circular>
+            </template>
+            </v-btn>
           </v-card-actions>
         </v-card>
       </v-col>
@@ -44,6 +49,11 @@ export default {
        * @property {string} testResults - Stores all the results of the tests.
        */
        testResults: "",
+
+      /**
+       * @property {boolean} testing - Flag to indicate if the tests are currently running.
+       */
+       testing: false,
        
       /**
        * @property {Array} callbacks - List of test callbacks with title and corresponding test function.
@@ -53,6 +63,10 @@ export default {
         {
           title: "sendToBackend",
           callback: this.testSendToBackend,
+        },
+        {
+          title: "Backend API Test",
+          callback: this.testBackendAPIs,
         },
         {
           title: "Logger Test",
@@ -137,7 +151,9 @@ export default {
      * @param {Object} callback - The callback object containing the test information.
      */
     async executeTest(callback) {
+      this.testing = true;
       const result = await callback.callback();
+      this.testing = false;
       this.testResults = `${callback.title}: ${result}`;
     },
 
@@ -147,7 +163,20 @@ export default {
      */
     async testSendToBackend() {
       try {
-        const result = await this.$fd.sendToBackend({ data: "Hello" });
+        const result = await this.$fd.sendToBackend({ data: "Hello from UI!" });
+        return JSON.stringify(result, null, 2);
+      } catch (error) {
+        return `Error: ${error.message}`;
+      }
+    },
+
+    /**
+     * @function testBackendAPIs
+     * @description Calls various backend APIs.
+     */
+    async testBackendAPIs() {
+      try {
+        const result = await this.$fd.sendToBackend({ data: "test" }, 0);
         return JSON.stringify(result, null, 2);
       } catch (error) {
         return `Error: ${error.message}`;

@@ -14,11 +14,12 @@ const flexPlugin = "com.eniac.test.plugin";
 const config = {
 	input: "src/plugin.js",
 	output: {
-		file: `${flexPlugin}/backend/plugin.js`,
+		file: `${flexPlugin}/backend/plugin.cjs`,
+		format: "cjs",
 		sourcemap: isWatching,
 		sourcemapPathTransform: (relativeSourcePath, sourcemapPath) => {
 			return url.pathToFileURL(path.resolve(path.dirname(sourcemapPath), relativeSourcePath)).href;
-		}
+		},
 	},
 	plugins: [
 		json(),
@@ -45,7 +46,8 @@ const config = {
 				this.emitFile({ fileName: "package.json", source: `{ "type": "module" }`, type: "asset" });
 			}
 		}
-	]
+	],
+	external: id => id.endsWith('.node')
 };
 
 export default config;
