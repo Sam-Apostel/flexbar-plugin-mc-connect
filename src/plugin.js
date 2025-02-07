@@ -90,17 +90,18 @@ plugin.on('ui.message', async (payload) => {
 /**
  * Called when device status changes
  * @param {object} data device status data
- * {
-  "status": "connected",
-  "serialNumber": "98EA9CDA3BD8",
-  "platform": "win32",
-  "profileVersion": "1.0.0",
-  "fwVersion": "1.0.0"
-}
-  {
-  "status": "disconnected",
-  "serialNumber": "98EA9CDA3BD8"
-}
+ * [
+ *  {
+ *    serialNumber: '',
+ *    deviceData: {
+ *       platform: '',
+ *       profileVersion: '',
+ *       firmwareVersion: '',
+ *       deviceName: '',
+ *       displayName: ''
+ *    }
+ *  }
+ * ]
  */
 plugin.on('device.status', (data) => {
     logger.info('Device status changed:', data)
@@ -108,29 +109,34 @@ plugin.on('device.status', (data) => {
 
 /**
  * Called when a plugin key is loaded
- * @param {Array} data key data array
- * [
-  {
-    "data": {},
-    "cid": "com.eniac.test.wheel",
-    "bg": 0,
-    "width": 360,
-    "pluginID": "com.eniac.test",
-    "typeOverride": "plugin",
-    "wheel": {
-      "step": 5
-    },
-    "cfg": {
-      "keyType": "wheel",
-      "sendKey": true
-    },
-    "uid": 0,
-    "sz": 2309
-  }
-]
+ * @param {Object} payload alive key data
+ * {
+ *  serialNumber: '',
+ *  keys: [
+ *  {
+ *      "data": {},
+ *      "cid": "com.eniac.test.wheel",
+ *      "bg": 0,
+ *      "width": 360,
+ *      "pluginID": "com.eniac.test",
+ *      "typeOverride": "plugin",
+ *      "wheel": {
+ *      "step": 5
+ *      },
+ *      "cfg": {
+ *      "keyType": "wheel",
+ *      "sendKey": true
+ *      },
+ *      "uid": 0,
+ *      "sz": 2309
+ *  }
+ *  ]
+ * }
  */
-plugin.on('plugin.alive', (data) => {
-    logger.info('Plugin alive:', data)
+plugin.on('plugin.alive', (payload) => {
+    logger.info('Plugin alive:', payload)
+    const data = payload.keys
+    const serialNUmber = payload.serialNumber
     feedbackKeys = []
     for (let key of data) {
         keyData[key.uid] = key
@@ -139,16 +145,16 @@ plugin.on('plugin.alive', (data) => {
             key.style.showIcon = false
             key.style.showTitle = true
             key.title = 'Click Me!'
-            plugin.draw(key, 'draw')
+            plugin.draw(serialNUmber, key, 'draw')
         }
         else if (key.cid === 'com.eniac.test.slider') {
-            plugin.set(key, {
+            plugin.set(serialNUmber, key, {
                 value: 50
             })
         }
         else if (key.cid === 'com.eniac.test.cyclebutton') {
             logger.debug('Setting state to 3')
-            plugin.set(key, {
+            plugin.set(serialNUmber, key, {
                 state: 3
             })
         }
@@ -161,10 +167,16 @@ plugin.on('plugin.alive', (data) => {
 
 /**
  * Called when user interacts with a key
- * @param {object} data key data
+ * @param {object} payload key data 
+ * {
+ *  serialNUmber, 
+ *  data
+ * }
  */
-plugin.on('plugin.data', (data) => {
-    logger.info('Received plugin.data:', data)
+plugin.on('plugin.data', (payload) => {
+    logger.info('Received plugin.data:', payload)
+    const data = payload.data
+    const serialNUmber = payload.serialNUmber
     if (data.key.cid === "com.eniac.test.cyclebutton") {
         return {
             "status": "success",
@@ -180,12 +192,12 @@ plugin.on('plugin.data', (data) => {
             keyData[key.uid].counter = parseInt(key.data.rangeMin)
         }
         key.title = `${keyData[key.uid].counter}`
-        plugin.draw(key, 'draw')
+        plugin.draw(serialNUmber, key, 'draw')
     }
     else if (data.key.cid === 'com.eniac.test.wheel') {
       for (let key of feedbackKeys) {
           const bg = generateRainbowCanvas(key.width, `${data.state} ${data.delta || "0"}`)
-          plugin.draw(key, 'base64', bg)
+          plugin.draw(serialNUmber, key, 'base64', bg)
         }
     }
 })
