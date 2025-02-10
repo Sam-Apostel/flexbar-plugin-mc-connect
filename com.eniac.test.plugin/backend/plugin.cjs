@@ -28243,7 +28243,7 @@ function requirePlugin_client () {
 	   * @returns {Promise<any>} A promise that resolves with the server response.
 	   */
 	  draw(serialNumber, key, type = 'draw', base64 = null) {
-	    return this._call(serialNumber, 'draw', {
+	    return this._call('draw', {
 	      serialNumber,
 	      type,
 	      key,
@@ -28295,7 +28295,7 @@ function requirePlugin_client () {
 	      throw new Error('Invalid key type');
 	    }
 
-	    return this._call(serialNumber, 'set', {
+	    return this._call('set', {
 	      serialNumber,
 	      key,
 	      data
@@ -30152,7 +30152,7 @@ function requirePlugin () {
 	plugin.on('plugin.alive', (payload) => {
 	    logger.info('Plugin alive:', payload);
 	    const data = payload.keys;
-	    const serialNUmber = payload.serialNumber;
+	    const serialNumber = payload.serialNumber;
 	    feedbackKeys = [];
 	    for (let key of data) {
 	        keyData[key.uid] = key;
@@ -30161,16 +30161,16 @@ function requirePlugin () {
 	            key.style.showIcon = false;
 	            key.style.showTitle = true;
 	            key.title = 'Click Me!';
-	            plugin.draw(serialNUmber, key, 'draw');
+	            plugin.draw(serialNumber, key, 'draw');
 	        }
 	        else if (key.cid === 'com.eniac.test.slider') {
-	            plugin.set(serialNUmber, key, {
+	            plugin.set(serialNumber, key, {
 	                value: 50
 	            });
 	        }
 	        else if (key.cid === 'com.eniac.test.cyclebutton') {
 	            logger.debug('Setting state to 3');
-	            plugin.set(serialNUmber, key, {
+	            plugin.set(serialNumber, key, {
 	                state: 3
 	            });
 	        }
@@ -30185,14 +30185,14 @@ function requirePlugin () {
 	 * Called when user interacts with a key
 	 * @param {object} payload key data 
 	 * {
-	 *  serialNUmber, 
+	 *  serialNumber, 
 	 *  data
 	 * }
 	 */
 	plugin.on('plugin.data', (payload) => {
 	    logger.info('Received plugin.data:', payload);
 	    const data = payload.data;
-	    const serialNUmber = payload.serialNUmber;
+	    const serialNumber = payload.serialNumber;
 	    if (data.key.cid === "com.eniac.test.cyclebutton") {
 	        return {
 	            "status": "success",
@@ -30208,24 +30208,18 @@ function requirePlugin () {
 	            keyData[key.uid].counter = parseInt(key.data.rangeMin);
 	        }
 	        key.title = `${keyData[key.uid].counter}`;
-	        plugin.draw(serialNUmber, key, 'draw');
-	    }
+	        plugin.draw(serialNumber, key, 'draw');
+	    } 
 	    else if (data.key.cid === 'com.eniac.test.wheel') {
 	      for (let key of feedbackKeys) {
 	          const bg = generateRainbowCanvas(key.width, `${data.state} ${data.delta || "0"}`);
-	          plugin.draw(serialNUmber, key, 'base64', bg);
+	          plugin.draw(serialNumber, key, 'base64', bg);
 	        }
 	    }
 	});
 
 	// Connect to flexdesigner and start the plugin
 	plugin.start();
-
-	setTimeout(async () => {
-	    logger.info('setConfig', await plugin.setConfig({ test: 'Hello' }));
-	    logger.info('getConfig', await plugin.getConfig());
-	}, 1000);
-
 
 	/**
 	 * @brief Generates a PNG base64 string with a rainbow gradient and a centered number.

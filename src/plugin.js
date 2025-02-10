@@ -138,7 +138,7 @@ plugin.on('device.status', (data) => {
 plugin.on('plugin.alive', (payload) => {
     logger.info('Plugin alive:', payload)
     const data = payload.keys
-    const serialNUmber = payload.serialNumber
+    const serialNumber = payload.serialNumber
     feedbackKeys = []
     for (let key of data) {
         keyData[key.uid] = key
@@ -147,16 +147,16 @@ plugin.on('plugin.alive', (payload) => {
             key.style.showIcon = false
             key.style.showTitle = true
             key.title = 'Click Me!'
-            plugin.draw(serialNUmber, key, 'draw')
+            plugin.draw(serialNumber, key, 'draw')
         }
         else if (key.cid === 'com.eniac.test.slider') {
-            plugin.set(serialNUmber, key, {
+            plugin.set(serialNumber, key, {
                 value: 50
             })
         }
         else if (key.cid === 'com.eniac.test.cyclebutton') {
             logger.debug('Setting state to 3')
-            plugin.set(serialNUmber, key, {
+            plugin.set(serialNumber, key, {
                 state: 3
             })
         }
@@ -171,14 +171,14 @@ plugin.on('plugin.alive', (payload) => {
  * Called when user interacts with a key
  * @param {object} payload key data 
  * {
- *  serialNUmber, 
+ *  serialNumber, 
  *  data
  * }
  */
 plugin.on('plugin.data', (payload) => {
     logger.info('Received plugin.data:', payload)
     const data = payload.data
-    const serialNUmber = payload.serialNUmber
+    const serialNumber = payload.serialNumber
     if (data.key.cid === "com.eniac.test.cyclebutton") {
         return {
             "status": "success",
@@ -194,12 +194,12 @@ plugin.on('plugin.data', (payload) => {
             keyData[key.uid].counter = parseInt(key.data.rangeMin)
         }
         key.title = `${keyData[key.uid].counter}`
-        plugin.draw(serialNUmber, key, 'draw')
-    }
+        plugin.draw(serialNumber, key, 'draw')
+    } 
     else if (data.key.cid === 'com.eniac.test.wheel') {
       for (let key of feedbackKeys) {
           const bg = generateRainbowCanvas(key.width, `${data.state} ${data.delta || "0"}`)
-          plugin.draw(serialNUmber, key, 'base64', bg)
+          plugin.draw(serialNumber, key, 'base64', bg)
         }
     }
 })
