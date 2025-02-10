@@ -60,16 +60,10 @@ function requireConstants () {
 	if (hasRequiredConstants) return constants;
 	hasRequiredConstants = 1;
 
-	const BINARY_TYPES = ['nodebuffer', 'arraybuffer', 'fragments'];
-	const hasBlob = typeof Blob !== 'undefined';
-
-	if (hasBlob) BINARY_TYPES.push('blob');
-
 	constants = {
-	  BINARY_TYPES,
+	  BINARY_TYPES: ['nodebuffer', 'arraybuffer', 'fragments'],
 	  EMPTY_BUFFER: Buffer.alloc(0),
 	  GUID: '258EAFA5-E914-47DA-95CA-C5AB0DC85B11',
-	  hasBlob,
 	  kForOnEventAttribute: Symbol('kIsForOnEventAttribute'),
 	  kListener: Symbol('kListener'),
 	  kStatusCode: Symbol('status-code'),
@@ -812,8 +806,6 @@ function requireValidation () {
 
 	const { isUtf8 } = require$$0$2;
 
-	const { hasBlob } = requireConstants();
-
 	//
 	// Allowed token characters:
 	//
@@ -919,27 +911,7 @@ function requireValidation () {
 	  return true;
 	}
 
-	/**
-	 * Determines whether a value is a `Blob`.
-	 *
-	 * @param {*} value The value to be tested
-	 * @return {Boolean} `true` if `value` is a `Blob`, else `false`
-	 * @private
-	 */
-	function isBlob(value) {
-	  return (
-	    hasBlob &&
-	    typeof value === 'object' &&
-	    typeof value.arrayBuffer === 'function' &&
-	    typeof value.type === 'string' &&
-	    typeof value.stream === 'function' &&
-	    (value[Symbol.toStringTag] === 'Blob' ||
-	      value[Symbol.toStringTag] === 'File')
-	  );
-	}
-
 	validation.exports = {
-	  isBlob,
 	  isValidStatusCode,
 	  isValidUTF8: _isValidUTF8,
 	  tokenChars
@@ -1529,8 +1501,6 @@ function requireReceiver () {
 	        data = concat(fragments, messageLength);
 	      } else if (this._binaryType === 'arraybuffer') {
 	        data = toArrayBuffer(concat(fragments, messageLength));
-	      } else if (this._binaryType === 'blob') {
-	        data = new Blob(fragments);
 	      } else {
 	        data = fragments;
 	      }
@@ -1688,19 +1658,12 @@ function requireSender () {
 	const { randomFillSync } = require$$0$4;
 
 	const PerMessageDeflate = requirePermessageDeflate();
-	const { EMPTY_BUFFER, kWebSocket, NOOP } = requireConstants();
-	const { isBlob, isValidStatusCode } = requireValidation();
+	const { EMPTY_BUFFER } = requireConstants();
+	const { isValidStatusCode } = requireValidation();
 	const { mask: applyMask, toBuffer } = requireBufferUtil();
 
 	const kByteLength = Symbol('kByteLength');
 	const maskBuffer = Buffer.alloc(4);
-	const RANDOM_POOL_SIZE = 8 * 1024;
-	let randomPool;
-	let randomPoolPointer = RANDOM_POOL_SIZE;
-
-	const DEFAULT = 0;
-	const DEFLATING = 1;
-	const GET_BLOB_DATA = 2;
 
 	/**
 	 * HyBi Sender implementation.
@@ -1728,10 +1691,8 @@ function requireSender () {
 	    this._compress = false;
 
 	    this._bufferedBytes = 0;
+	    this._deflating = false;
 	    this._queue = [];
-	    this._state = DEFAULT;
-	    this.onerror = NOOP;
-	    this[kWebSocket] = undefined;
 	  }
 
 	  /**
@@ -1767,24 +1728,7 @@ function requireSender () {
 	      if (options.generateMask) {
 	        options.generateMask(mask);
 	      } else {
-	        if (randomPoolPointer === RANDOM_POOL_SIZE) {
-	          /* istanbul ignore else  */
-	          if (randomPool === undefined) {
-	            //
-	            // This is lazily initialized because server-sent frames must not
-	            // be masked so it may never be used.
-	            //
-	            randomPool = Buffer.alloc(RANDOM_POOL_SIZE);
-	          }
-
-	          randomFillSync(randomPool, 0, RANDOM_POOL_SIZE);
-	          randomPoolPointer = 0;
-	        }
-
-	        mask[0] = randomPool[randomPoolPointer++];
-	        mask[1] = randomPool[randomPoolPointer++];
-	        mask[2] = randomPool[randomPoolPointer++];
-	        mask[3] = randomPool[randomPoolPointer++];
+	        randomFillSync(mask, 0, 4);
 	      }
 
 	      skipMasking = (mask[0] | mask[1] | mask[2] | mask[3]) === 0;
@@ -1898,7 +1842,7 @@ function requireSender () {
 	      rsv1: false
 	    };
 
-	    if (this._state !== DEFAULT) {
+	    if (this._deflating) {
 	      this.enqueue([this.dispatch, buf, false, options, cb]);
 	    } else {
 	      this.sendFrame(Sender.frame(buf, options), cb);
@@ -1919,9 +1863,6 @@ function requireSender () {
 
 	    if (typeof data === 'string') {
 	      byteLength = Buffer.byteLength(data);
-	      readOnly = false;
-	    } else if (isBlob(data)) {
-	      byteLength = data.size;
 	      readOnly = false;
 	    } else {
 	      data = toBuffer(data);
@@ -1944,13 +1885,7 @@ function requireSender () {
 	      rsv1: false
 	    };
 
-	    if (isBlob(data)) {
-	      if (this._state !== DEFAULT) {
-	        this.enqueue([this.getBlobData, data, false, options, cb]);
-	      } else {
-	        this.getBlobData(data, false, options, cb);
-	      }
-	    } else if (this._state !== DEFAULT) {
+	    if (this._deflating) {
 	      this.enqueue([this.dispatch, data, false, options, cb]);
 	    } else {
 	      this.sendFrame(Sender.frame(data, options), cb);
@@ -1971,9 +1906,6 @@ function requireSender () {
 
 	    if (typeof data === 'string') {
 	      byteLength = Buffer.byteLength(data);
-	      readOnly = false;
-	    } else if (isBlob(data)) {
-	      byteLength = data.size;
 	      readOnly = false;
 	    } else {
 	      data = toBuffer(data);
@@ -1996,13 +1928,7 @@ function requireSender () {
 	      rsv1: false
 	    };
 
-	    if (isBlob(data)) {
-	      if (this._state !== DEFAULT) {
-	        this.enqueue([this.getBlobData, data, false, options, cb]);
-	      } else {
-	        this.getBlobData(data, false, options, cb);
-	      }
-	    } else if (this._state !== DEFAULT) {
+	    if (this._deflating) {
 	      this.enqueue([this.dispatch, data, false, options, cb]);
 	    } else {
 	      this.sendFrame(Sender.frame(data, options), cb);
@@ -2036,9 +1962,6 @@ function requireSender () {
 	    if (typeof data === 'string') {
 	      byteLength = Buffer.byteLength(data);
 	      readOnly = false;
-	    } else if (isBlob(data)) {
-	      byteLength = data.size;
-	      readOnly = false;
 	    } else {
 	      data = toBuffer(data);
 	      byteLength = data.length;
@@ -2066,92 +1989,38 @@ function requireSender () {
 
 	    if (options.fin) this._firstFragment = true;
 
-	    const opts = {
-	      [kByteLength]: byteLength,
-	      fin: options.fin,
-	      generateMask: this._generateMask,
-	      mask: options.mask,
-	      maskBuffer: this._maskBuffer,
-	      opcode,
-	      readOnly,
-	      rsv1
-	    };
+	    if (perMessageDeflate) {
+	      const opts = {
+	        [kByteLength]: byteLength,
+	        fin: options.fin,
+	        generateMask: this._generateMask,
+	        mask: options.mask,
+	        maskBuffer: this._maskBuffer,
+	        opcode,
+	        readOnly,
+	        rsv1
+	      };
 
-	    if (isBlob(data)) {
-	      if (this._state !== DEFAULT) {
-	        this.enqueue([this.getBlobData, data, this._compress, opts, cb]);
+	      if (this._deflating) {
+	        this.enqueue([this.dispatch, data, this._compress, opts, cb]);
 	      } else {
-	        this.getBlobData(data, this._compress, opts, cb);
+	        this.dispatch(data, this._compress, opts, cb);
 	      }
-	    } else if (this._state !== DEFAULT) {
-	      this.enqueue([this.dispatch, data, this._compress, opts, cb]);
 	    } else {
-	      this.dispatch(data, this._compress, opts, cb);
+	      this.sendFrame(
+	        Sender.frame(data, {
+	          [kByteLength]: byteLength,
+	          fin: options.fin,
+	          generateMask: this._generateMask,
+	          mask: options.mask,
+	          maskBuffer: this._maskBuffer,
+	          opcode,
+	          readOnly,
+	          rsv1: false
+	        }),
+	        cb
+	      );
 	    }
-	  }
-
-	  /**
-	   * Gets the contents of a blob as binary data.
-	   *
-	   * @param {Blob} blob The blob
-	   * @param {Boolean} [compress=false] Specifies whether or not to compress
-	   *     the data
-	   * @param {Object} options Options object
-	   * @param {Boolean} [options.fin=false] Specifies whether or not to set the
-	   *     FIN bit
-	   * @param {Function} [options.generateMask] The function used to generate the
-	   *     masking key
-	   * @param {Boolean} [options.mask=false] Specifies whether or not to mask
-	   *     `data`
-	   * @param {Buffer} [options.maskBuffer] The buffer used to store the masking
-	   *     key
-	   * @param {Number} options.opcode The opcode
-	   * @param {Boolean} [options.readOnly=false] Specifies whether `data` can be
-	   *     modified
-	   * @param {Boolean} [options.rsv1=false] Specifies whether or not to set the
-	   *     RSV1 bit
-	   * @param {Function} [cb] Callback
-	   * @private
-	   */
-	  getBlobData(blob, compress, options, cb) {
-	    this._bufferedBytes += options[kByteLength];
-	    this._state = GET_BLOB_DATA;
-
-	    blob
-	      .arrayBuffer()
-	      .then((arrayBuffer) => {
-	        if (this._socket.destroyed) {
-	          const err = new Error(
-	            'The socket was closed while the blob was being read'
-	          );
-
-	          //
-	          // `callCallbacks` is called in the next tick to ensure that errors
-	          // that might be thrown in the callbacks behave like errors thrown
-	          // outside the promise chain.
-	          //
-	          process.nextTick(callCallbacks, this, err, cb);
-	          return;
-	        }
-
-	        this._bufferedBytes -= options[kByteLength];
-	        const data = toBuffer(arrayBuffer);
-
-	        if (!compress) {
-	          this._state = DEFAULT;
-	          this.sendFrame(Sender.frame(data, options), cb);
-	          this.dequeue();
-	        } else {
-	          this.dispatch(data, compress, options, cb);
-	        }
-	      })
-	      .catch((err) => {
-	        //
-	        // `onError` is called in the next tick for the same reason that
-	        // `callCallbacks` above is.
-	        //
-	        process.nextTick(onError, this, err, cb);
-	      });
 	  }
 
 	  /**
@@ -2186,19 +2055,27 @@ function requireSender () {
 	    const perMessageDeflate = this._extensions[PerMessageDeflate.extensionName];
 
 	    this._bufferedBytes += options[kByteLength];
-	    this._state = DEFLATING;
+	    this._deflating = true;
 	    perMessageDeflate.compress(data, options.fin, (_, buf) => {
 	      if (this._socket.destroyed) {
 	        const err = new Error(
 	          'The socket was closed while data was being compressed'
 	        );
 
-	        callCallbacks(this, err, cb);
+	        if (typeof cb === 'function') cb(err);
+
+	        for (let i = 0; i < this._queue.length; i++) {
+	          const params = this._queue[i];
+	          const callback = params[params.length - 1];
+
+	          if (typeof callback === 'function') callback(err);
+	        }
+
 	        return;
 	      }
 
 	      this._bufferedBytes -= options[kByteLength];
-	      this._state = DEFAULT;
+	      this._deflating = false;
 	      options.readOnly = false;
 	      this.sendFrame(Sender.frame(buf, options), cb);
 	      this.dequeue();
@@ -2211,7 +2088,7 @@ function requireSender () {
 	   * @private
 	   */
 	  dequeue() {
-	    while (this._state === DEFAULT && this._queue.length) {
+	    while (!this._deflating && this._queue.length) {
 	      const params = this._queue.shift();
 
 	      this._bufferedBytes -= params[3][kByteLength];
@@ -2250,38 +2127,6 @@ function requireSender () {
 	}
 
 	sender = Sender;
-
-	/**
-	 * Calls queued callbacks with an error.
-	 *
-	 * @param {Sender} sender The `Sender` instance
-	 * @param {Error} err The error to call the callbacks with
-	 * @param {Function} [cb] The first callback
-	 * @private
-	 */
-	function callCallbacks(sender, err, cb) {
-	  if (typeof cb === 'function') cb(err);
-
-	  for (let i = 0; i < sender._queue.length; i++) {
-	    const params = sender._queue[i];
-	    const callback = params[params.length - 1];
-
-	    if (typeof callback === 'function') callback(err);
-	  }
-	}
-
-	/**
-	 * Handles a `Sender` error.
-	 *
-	 * @param {Sender} sender The `Sender` instance
-	 * @param {Error} err The error
-	 * @param {Function} [cb] The first pending callback
-	 * @private
-	 */
-	function onError(sender, err, cb) {
-	  callCallbacks(sender, err, cb);
-	  sender.onerror(err);
-	}
 	return sender;
 }
 
@@ -2816,8 +2661,6 @@ function requireWebsocket () {
 	const PerMessageDeflate = requirePermessageDeflate();
 	const Receiver = requireReceiver();
 	const Sender = requireSender();
-	const { isBlob } = requireValidation();
-
 	const {
 	  BINARY_TYPES,
 	  EMPTY_BUFFER,
@@ -2862,7 +2705,6 @@ function requireWebsocket () {
 	    this._closeFrameSent = false;
 	    this._closeMessage = EMPTY_BUFFER;
 	    this._closeTimer = null;
-	    this._errorEmitted = false;
 	    this._extensions = {};
 	    this._paused = false;
 	    this._protocol = '';
@@ -2895,8 +2737,9 @@ function requireWebsocket () {
 	  }
 
 	  /**
-	   * For historical reasons, the custom "nodebuffer" type is used by the default
-	   * instead of "blob".
+	   * This deviates from the WHATWG interface since ws doesn't support the
+	   * required default "blob" type (instead we define a custom "nodebuffer"
+	   * type).
 	   *
 	   * @type {String}
 	   */
@@ -3017,14 +2860,11 @@ function requireWebsocket () {
 	      skipUTF8Validation: options.skipUTF8Validation
 	    });
 
-	    const sender = new Sender(socket, this._extensions, options.generateMask);
-
+	    this._sender = new Sender(socket, this._extensions, options.generateMask);
 	    this._receiver = receiver;
-	    this._sender = sender;
 	    this._socket = socket;
 
 	    receiver[kWebSocket] = this;
-	    sender[kWebSocket] = this;
 	    socket[kWebSocket] = this;
 
 	    receiver.on('conclude', receiverOnConclude);
@@ -3033,8 +2873,6 @@ function requireWebsocket () {
 	    receiver.on('message', receiverOnMessage);
 	    receiver.on('ping', receiverOnPing);
 	    receiver.on('pong', receiverOnPong);
-
-	    sender.onerror = senderOnError;
 
 	    //
 	    // These methods may not be available if `socket` is just a `Duplex`.
@@ -3131,7 +2969,13 @@ function requireWebsocket () {
 	      }
 	    });
 
-	    setCloseTimer(this);
+	    //
+	    // Specify a timeout for the closing handshake to complete.
+	    //
+	    this._closeTimer = setTimeout(
+	      this._socket.destroy.bind(this._socket),
+	      closeTimeout
+	    );
 	  }
 
 	  /**
@@ -3731,9 +3575,7 @@ function requireWebsocket () {
 
 	    req = websocket._req = null;
 
-	    const upgrade = res.headers.upgrade;
-
-	    if (upgrade === undefined || upgrade.toLowerCase() !== 'websocket') {
+	    if (res.headers.upgrade.toLowerCase() !== 'websocket') {
 	      abortHandshake(websocket, socket, 'Invalid Upgrade header');
 	      return;
 	    }
@@ -3835,11 +3677,6 @@ function requireWebsocket () {
 	 */
 	function emitErrorAndClose(websocket, err) {
 	  websocket._readyState = WebSocket.CLOSING;
-	  //
-	  // The following assignment is practically useless and is done only for
-	  // consistency.
-	  //
-	  websocket._errorEmitted = true;
 	  websocket.emit('error', err);
 	  websocket.emitClose();
 	}
@@ -3920,7 +3757,7 @@ function requireWebsocket () {
 	 */
 	function sendAfterClose(websocket, data, cb) {
 	  if (data) {
-	    const length = isBlob(data) ? data.size : toBuffer(data).length;
+	    const length = toBuffer(data).length;
 
 	    //
 	    // The `_bufferedAmount` property is used only when the peer is a client and
@@ -3996,10 +3833,7 @@ function requireWebsocket () {
 	    websocket.close(err[kStatusCode]);
 	  }
 
-	  if (!websocket._errorEmitted) {
-	    websocket._errorEmitted = true;
-	    websocket.emit('error', err);
-	  }
+	  websocket.emit('error', err);
 	}
 
 	/**
@@ -4053,47 +3887,6 @@ function requireWebsocket () {
 	 */
 	function resume(stream) {
 	  stream.resume();
-	}
-
-	/**
-	 * The `Sender` error event handler.
-	 *
-	 * @param {Error} The error
-	 * @private
-	 */
-	function senderOnError(err) {
-	  const websocket = this[kWebSocket];
-
-	  if (websocket.readyState === WebSocket.CLOSED) return;
-	  if (websocket.readyState === WebSocket.OPEN) {
-	    websocket._readyState = WebSocket.CLOSING;
-	    setCloseTimer(websocket);
-	  }
-
-	  //
-	  // `socket.end()` is used instead of `socket.destroy()` to allow the other
-	  // peer to finish sending queued data. There is no need to set a timer here
-	  // because `CLOSING` means that it is already set or not needed.
-	  //
-	  this._socket.end();
-
-	  if (!websocket._errorEmitted) {
-	    websocket._errorEmitted = true;
-	    websocket.emit('error', err);
-	  }
-	}
-
-	/**
-	 * Set a timer to destroy the underlying raw socket of a WebSocket.
-	 *
-	 * @param {WebSocket} websocket The WebSocket instance
-	 * @private
-	 */
-	function setCloseTimer(websocket) {
-	  websocket._closeTimer = setTimeout(
-	    websocket._socket.destroy.bind(websocket._socket),
-	    closeTimeout
-	  );
 	}
 
 	/**
@@ -4669,7 +4462,6 @@ function requireWebsocketServer () {
 	    socket.on('error', socketOnError);
 
 	    const key = req.headers['sec-websocket-key'];
-	    const upgrade = req.headers.upgrade;
 	    const version = +req.headers['sec-websocket-version'];
 
 	    if (req.method !== 'GET') {
@@ -4678,13 +4470,13 @@ function requireWebsocketServer () {
 	      return;
 	    }
 
-	    if (upgrade === undefined || upgrade.toLowerCase() !== 'websocket') {
+	    if (req.headers.upgrade.toLowerCase() !== 'websocket') {
 	      const message = 'Invalid Upgrade header';
 	      abortHandshakeOrEmitwsClientError(this, req, socket, 400, message);
 	      return;
 	    }
 
-	    if (key === undefined || !keyRegex.test(key)) {
+	    if (!key || !keyRegex.test(key)) {
 	      const message = 'Missing or invalid Sec-WebSocket-Key header';
 	      abortHandshakeOrEmitwsClientError(this, req, socket, 400, message);
 	      return;
@@ -28232,6 +28024,9 @@ function requirePlugin_client () {
 	    this.ws = null;
 	    this.handlers = {};    // For on(type, handler)
 	    this.pendingCalls = {}; 
+	    this.uuid = '',
+	    this.directory = '',
+	    this.port = 0;
 	  }
 
 	  /**
@@ -28253,6 +28048,10 @@ function requirePlugin_client () {
 	    }
 
 	    logger.info(`Starting plugin client with port ${port}, uid ${uid} and dir ${dir}`);
+
+	    this.port = port;
+	    this.uuid = uid;
+	    this.directory = dir;
 
 	    this.serverUrl = `ws://localhost:${port}`;
 	    this.ws = new WebSocket(this.serverUrl);
@@ -28434,6 +28233,7 @@ function requirePlugin_client () {
 	   * This method sends a draw command to the server, allowing the image data in 
 	   * base64 format to be drawn on the specified key.
 	   *
+	   * @param {string} serialNumber - The serial number of the device.
 	   * @param {Object} key - The key object received from the event `device.newPage` or `device.userData`.
 	   * @param {string} type - The type of drawing operation. Possible values:
 	   * ```
@@ -28442,8 +28242,9 @@ function requirePlugin_client () {
 	   * @param {string} [base64=null] - The base64 image data. Only used if `type` is "base64".
 	   * @returns {Promise<any>} A promise that resolves with the server response.
 	   */
-	  draw(key, type = 'draw', base64 = null) {
-	    return this._call('draw', {
+	  draw(serialNumber, key, type = 'draw', base64 = null) {
+	    return this._call(serialNumber, 'draw', {
+	      serialNumber,
 	      type,
 	      key,
 	      base64
@@ -28457,6 +28258,7 @@ function requirePlugin_client () {
 	   * This method sends a command to update the state or value of a specified key 
 	   * based on the key type. It supports "multiState" and "slider" key types.
 	   *
+	   * @param {string} serialNumber - The serial number of the device.
 	   * @param {Object} key - The key object received from the event `device.newPage` or `device.userData`.
 	   * @param {Object} data - The data to set on the key. The format of `data` depends on the key type:
 	   *   - For "multiState" keys: 
@@ -28475,7 +28277,7 @@ function requirePlugin_client () {
 	   * @throws {Error} If the provided data is invalid for the given key type.
 	   * @returns {Promise<any>} A promise that resolves with the server response.
 	   */
-	  set(key, data) {
+	  set(serialNumber, key, data) {
 	    // validate data
 	    if (key.cfg?.keyType === 'multiState') {
 	      // state key
@@ -28493,7 +28295,8 @@ function requirePlugin_client () {
 	      throw new Error('Invalid key type');
 	    }
 
-	    return this._call('set', {
+	    return this._call(serialNumber, 'set', {
+	      serialNumber,
 	      key,
 	      data
 	    });
@@ -28705,6 +28508,42 @@ function requirePlugin_client () {
 	      {
 	        api: "getDeviceStatus",
 	        args: null,
+	      },
+	      0
+	    );
+	  }
+
+	  /**
+	   * @brief Get the plugin configuration.
+	   * 
+	   * @returns {Promise<Object>} A promise that resolves to the plugin configuration object.
+	   * @throws {Error} Throws an error if the call fails
+	   */
+	  getConfig() {
+	    return this._call(
+	      "api-call",
+	      {
+	        api: "getPluginConfig",
+	        pluginID: this.uuid,
+	      },
+	      0
+	    );
+	  }
+
+	  /**
+	   * @brief Set the plugin configuration.
+	   * 
+	   * @param {Object} config The plugin configuration object.
+	   * @returns {Promise<Object>} A promise that resolves to the result { status: 'success' | 'error }.
+	   * @throws {Error} Throws an error if the call fails
+	   */
+	  setConfig(config) {
+	    return this._call(
+	      "api-call",
+	      {
+	        api: "setPluginConfig",
+	        pluginID: this.uuid,
+	        config
 	      },
 	      0
 	    );
@@ -30185,6 +30024,8 @@ function requirePlugin () {
 	    logger.info('Test plugin API calls');
 	    logger.info('showSnackbarMessage', await plugin.showSnackbarMessage('info', 'Hello from plugin!'));
 	    logger.info('getAppInfo', await plugin.getAppInfo());
+	    logger.info('setConfig', await plugin.setConfig({ test: 'Hello' }));
+	    logger.info('getConfig', await plugin.getConfig());
 	    logger.info('saveFile', await plugin.saveFile(path.resolve(pluginPath, 'test.txt'), 'Hello world!!!'));
 	    logger.info('openFile', await plugin.openFile(path.resolve(pluginPath, 'test.txt')));
 	    logger.info('getOpenedWindows', await plugin.getOpenedWindows());
@@ -30265,17 +30106,18 @@ function requirePlugin () {
 	/**
 	 * Called when device status changes
 	 * @param {object} data device status data
-	 * {
-	  "status": "connected",
-	  "serialNumber": "98EA9CDA3BD8",
-	  "platform": "win32",
-	  "profileVersion": "1.0.0",
-	  "fwVersion": "1.0.0"
-	}
-	  {
-	  "status": "disconnected",
-	  "serialNumber": "98EA9CDA3BD8"
-	}
+	 * [
+	 *  {
+	 *    serialNumber: '',
+	 *    deviceData: {
+	 *       platform: '',
+	 *       profileVersion: '',
+	 *       firmwareVersion: '',
+	 *       deviceName: '',
+	 *       displayName: ''
+	 *    }
+	 *  }
+	 * ]
 	 */
 	plugin.on('device.status', (data) => {
 	    logger.info('Device status changed:', data);
@@ -30283,29 +30125,34 @@ function requirePlugin () {
 
 	/**
 	 * Called when a plugin key is loaded
-	 * @param {Array} data key data array
-	 * [
-	  {
-	    "data": {},
-	    "cid": "com.eniac.test.wheel",
-	    "bg": 0,
-	    "width": 360,
-	    "pluginID": "com.eniac.test",
-	    "typeOverride": "plugin",
-	    "wheel": {
-	      "step": 5
-	    },
-	    "cfg": {
-	      "keyType": "wheel",
-	      "sendKey": true
-	    },
-	    "uid": 0,
-	    "sz": 2309
-	  }
-	]
+	 * @param {Object} payload alive key data
+	 * {
+	 *  serialNumber: '',
+	 *  keys: [
+	 *  {
+	 *      "data": {},
+	 *      "cid": "com.eniac.test.wheel",
+	 *      "bg": 0,
+	 *      "width": 360,
+	 *      "pluginID": "com.eniac.test",
+	 *      "typeOverride": "plugin",
+	 *      "wheel": {
+	 *      "step": 5
+	 *      },
+	 *      "cfg": {
+	 *      "keyType": "wheel",
+	 *      "sendKey": true
+	 *      },
+	 *      "uid": 0,
+	 *      "sz": 2309
+	 *  }
+	 *  ]
+	 * }
 	 */
-	plugin.on('plugin.alive', (data) => {
-	    logger.info('Plugin alive:', data);
+	plugin.on('plugin.alive', (payload) => {
+	    logger.info('Plugin alive:', payload);
+	    const data = payload.keys;
+	    const serialNUmber = payload.serialNumber;
 	    feedbackKeys = [];
 	    for (let key of data) {
 	        keyData[key.uid] = key;
@@ -30314,16 +30161,16 @@ function requirePlugin () {
 	            key.style.showIcon = false;
 	            key.style.showTitle = true;
 	            key.title = 'Click Me!';
-	            plugin.draw(key, 'draw');
+	            plugin.draw(serialNUmber, key, 'draw');
 	        }
 	        else if (key.cid === 'com.eniac.test.slider') {
-	            plugin.set(key, {
+	            plugin.set(serialNUmber, key, {
 	                value: 50
 	            });
 	        }
 	        else if (key.cid === 'com.eniac.test.cyclebutton') {
 	            logger.debug('Setting state to 3');
-	            plugin.set(key, {
+	            plugin.set(serialNUmber, key, {
 	                state: 3
 	            });
 	        }
@@ -30336,10 +30183,16 @@ function requirePlugin () {
 
 	/**
 	 * Called when user interacts with a key
-	 * @param {object} data key data
+	 * @param {object} payload key data 
+	 * {
+	 *  serialNUmber, 
+	 *  data
+	 * }
 	 */
-	plugin.on('plugin.data', (data) => {
-	    logger.info('Received plugin.data:', data);
+	plugin.on('plugin.data', (payload) => {
+	    logger.info('Received plugin.data:', payload);
+	    const data = payload.data;
+	    const serialNUmber = payload.serialNUmber;
 	    if (data.key.cid === "com.eniac.test.cyclebutton") {
 	        return {
 	            "status": "success",
@@ -30355,18 +30208,23 @@ function requirePlugin () {
 	            keyData[key.uid].counter = parseInt(key.data.rangeMin);
 	        }
 	        key.title = `${keyData[key.uid].counter}`;
-	        plugin.draw(key, 'draw');
+	        plugin.draw(serialNUmber, key, 'draw');
 	    }
 	    else if (data.key.cid === 'com.eniac.test.wheel') {
 	      for (let key of feedbackKeys) {
 	          const bg = generateRainbowCanvas(key.width, `${data.state} ${data.delta || "0"}`);
-	          plugin.draw(key, 'base64', bg);
+	          plugin.draw(serialNUmber, key, 'base64', bg);
 	        }
 	    }
 	});
 
 	// Connect to flexdesigner and start the plugin
 	plugin.start();
+
+	setTimeout(async () => {
+	    logger.info('setConfig', await plugin.setConfig({ test: 'Hello' }));
+	    logger.info('getConfig', await plugin.getConfig());
+	}, 1000);
 
 
 	/**

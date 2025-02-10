@@ -10,6 +10,8 @@ async function testAPIs()
     logger.info('Test plugin API calls')
     logger.info('showSnackbarMessage', await plugin.showSnackbarMessage('info', 'Hello from plugin!'))
     logger.info('getAppInfo', await plugin.getAppInfo())
+    logger.info('setConfig', await plugin.setConfig({ test: 'Hello' }))
+    logger.info('getConfig', await plugin.getConfig())
     logger.info('saveFile', await plugin.saveFile(path.resolve(pluginPath, 'test.txt'), 'Hello world!!!'))
     logger.info('openFile', await plugin.openFile(path.resolve(pluginPath, 'test.txt')))
     logger.info('getOpenedWindows', await plugin.getOpenedWindows())
@@ -204,7 +206,6 @@ plugin.on('plugin.data', (payload) => {
 
 // Connect to flexdesigner and start the plugin
 plugin.start()
-
 
 /**
  * @brief Generates a PNG base64 string with a rainbow gradient and a centered number.

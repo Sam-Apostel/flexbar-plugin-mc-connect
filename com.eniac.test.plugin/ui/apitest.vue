@@ -73,6 +73,14 @@ export default {
           callback: this.testLoggerCalls,
         },
         {
+          title: "getConfig",
+          callback: this.testGetConfig,
+        },
+        {
+          title: "setConfig",
+          callback: this.testSetConfig,
+        },
+        {
           title: "getAppInfo",
           callback: this.testGetAppInfo,
         },
@@ -194,6 +202,32 @@ export default {
         this.$fd.warn("Logger warn message");
         this.$fd.error("Logger error message");
         return "Logger methods have been called successfully.";
+      } catch (error) {
+        return `Error: ${error.message}`;
+      }
+    },
+
+    /**
+     * @function testGetConfig
+     * @description Retrieves the current configuration and returns the result.
+     */
+    async testGetConfig() {
+      try {
+        const config = await this.$fd.getConfig();
+        return JSON.stringify(config, null, 2);
+      } catch (error) {
+        return `Error: ${error.message}`;
+      }
+    },
+
+    /**
+     * @function testSetConfig
+     * @description Sets a test configuration and returns the result status.
+     */
+    async testSetConfig() {
+      try {
+        await this.$fd.setConfig({ test: "test" });
+        return "Configuration set successfully.";
       } catch (error) {
         return `Error: ${error.message}`;
       }

@@ -28,6 +28,7 @@
             "version": "1.0.0"
         }
     ],
+    "configPage": "global_config",
     "keyLibrary": {
         "title": "My Plugin",
         "style": {
@@ -211,6 +212,8 @@
                         "sendToBackend": "Sends a message to the backend and receives a response.",
                         "Backend API Test": "Tests all backend APIs.",
                         "Logger Test": "Tests various logging methods (debug, info, warn, error).",
+                        "getConfig": "Get the configuration of plugin.",
+                        "setConfig": "Set the configuration of plugin.",
                         "getAppInfo": "Retrieves application version and platform information.",
                         "saveFile": "Saves a file to the app's data path.",
                         "openFile": "Opens a file previously saved to the app's data path.",
