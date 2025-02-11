@@ -91,7 +91,7 @@ plugin.on('ui.message', async (payload) => {
 
 /**
  * Called when device status changes
- * @param {object} data device status data
+ * @param {object} devices device status data
  * [
  *  {
  *    serialNumber: '',
@@ -105,8 +105,8 @@ plugin.on('ui.message', async (payload) => {
  *  }
  * ]
  */
-plugin.on('device.status', (data) => {
-    logger.info('Device status changed:', data)
+plugin.on('device.status', (devices) => {
+    logger.info('Device status changed:', devices)
 })
 
 /**
