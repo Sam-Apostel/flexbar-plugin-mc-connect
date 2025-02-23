@@ -1,7 +1,7 @@
 {
     "name": "Example",
     "uuid": "com.eniac.example",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "author": "ENIAC",
     "entry": "backend/plugin.cjs",
     "description": "Example plugin for FlexDesigner",
@@ -30,7 +30,7 @@
     ],
     "configPage": "global_config",
     "keyLibrary": {
-        "title": "My Plugin",
+        "title": "Example",
         "style": {
             "icon": "mdi mdi-puzzle"
         },
