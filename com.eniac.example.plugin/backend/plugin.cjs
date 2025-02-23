@@ -60,10 +60,16 @@ function requireConstants () {
 	if (hasRequiredConstants) return constants;
 	hasRequiredConstants = 1;
 
+	const BINARY_TYPES = ['nodebuffer', 'arraybuffer', 'fragments'];
+	const hasBlob = typeof Blob !== 'undefined';
+
+	if (hasBlob) BINARY_TYPES.push('blob');
+
 	constants = {
-	  BINARY_TYPES: ['nodebuffer', 'arraybuffer', 'fragments'],
+	  BINARY_TYPES,
 	  EMPTY_BUFFER: Buffer.alloc(0),
 	  GUID: '258EAFA5-E914-47DA-95CA-C5AB0DC85B11',
+	  hasBlob,
 	  kForOnEventAttribute: Symbol('kIsForOnEventAttribute'),
 	  kListener: Symbol('kListener'),
 	  kStatusCode: Symbol('status-code'),
@@ -806,6 +812,8 @@ function requireValidation () {
 
 	const { isUtf8 } = require$$0$2;
 
+	const { hasBlob } = requireConstants();
+
 	//
 	// Allowed token characters:
 	//
@@ -911,7 +919,27 @@ function requireValidation () {
 	  return true;
 	}
 
+	/**
+	 * Determines whether a value is a `Blob`.
+	 *
+	 * @param {*} value The value to be tested
+	 * @return {Boolean} `true` if `value` is a `Blob`, else `false`
+	 * @private
+	 */
+	function isBlob(value) {
+	  return (
+	    hasBlob &&
+	    typeof value === 'object' &&
+	    typeof value.arrayBuffer === 'function' &&
+	    typeof value.type === 'string' &&
+	    typeof value.stream === 'function' &&
+	    (value[Symbol.toStringTag] === 'Blob' ||
+	      value[Symbol.toStringTag] === 'File')
+	  );
+	}
+
 	validation.exports = {
+	  isBlob,
 	  isValidStatusCode,
 	  isValidUTF8: _isValidUTF8,
 	  tokenChars
@@ -1501,6 +1529,8 @@ function requireReceiver () {
 	        data = concat(fragments, messageLength);
 	      } else if (this._binaryType === 'arraybuffer') {
 	        data = toArrayBuffer(concat(fragments, messageLength));
+	      } else if (this._binaryType === 'blob') {
+	        data = new Blob(fragments);
 	      } else {
 	        data = fragments;
 	      }
@@ -1658,12 +1688,19 @@ function requireSender () {
 	const { randomFillSync } = require$$0$4;
 
 	const PerMessageDeflate = requirePermessageDeflate();
-	const { EMPTY_BUFFER } = requireConstants();
-	const { isValidStatusCode } = requireValidation();
+	const { EMPTY_BUFFER, kWebSocket, NOOP } = requireConstants();
+	const { isBlob, isValidStatusCode } = requireValidation();
 	const { mask: applyMask, toBuffer } = requireBufferUtil();
 
 	const kByteLength = Symbol('kByteLength');
 	const maskBuffer = Buffer.alloc(4);
+	const RANDOM_POOL_SIZE = 8 * 1024;
+	let randomPool;
+	let randomPoolPointer = RANDOM_POOL_SIZE;
+
+	const DEFAULT = 0;
+	const DEFLATING = 1;
+	const GET_BLOB_DATA = 2;
 
 	/**
 	 * HyBi Sender implementation.
@@ -1691,8 +1728,10 @@ function requireSender () {
 	    this._compress = false;
 
 	    this._bufferedBytes = 0;
-	    this._deflating = false;
 	    this._queue = [];
+	    this._state = DEFAULT;
+	    this.onerror = NOOP;
+	    this[kWebSocket] = undefined;
 	  }
 
 	  /**
@@ -1728,7 +1767,24 @@ function requireSender () {
 	      if (options.generateMask) {
 	        options.generateMask(mask);
 	      } else {
-	        randomFillSync(mask, 0, 4);
+	        if (randomPoolPointer === RANDOM_POOL_SIZE) {
+	          /* istanbul ignore else  */
+	          if (randomPool === undefined) {
+	            //
+	            // This is lazily initialized because server-sent frames must not
+	            // be masked so it may never be used.
+	            //
+	            randomPool = Buffer.alloc(RANDOM_POOL_SIZE);
+	          }
+
+	          randomFillSync(randomPool, 0, RANDOM_POOL_SIZE);
+	          randomPoolPointer = 0;
+	        }
+
+	        mask[0] = randomPool[randomPoolPointer++];
+	        mask[1] = randomPool[randomPoolPointer++];
+	        mask[2] = randomPool[randomPoolPointer++];
+	        mask[3] = randomPool[randomPoolPointer++];
 	      }
 
 	      skipMasking = (mask[0] | mask[1] | mask[2] | mask[3]) === 0;
@@ -1842,7 +1898,7 @@ function requireSender () {
 	      rsv1: false
 	    };
 
-	    if (this._deflating) {
+	    if (this._state !== DEFAULT) {
 	      this.enqueue([this.dispatch, buf, false, options, cb]);
 	    } else {
 	      this.sendFrame(Sender.frame(buf, options), cb);
@@ -1863,6 +1919,9 @@ function requireSender () {
 
 	    if (typeof data === 'string') {
 	      byteLength = Buffer.byteLength(data);
+	      readOnly = false;
+	    } else if (isBlob(data)) {
+	      byteLength = data.size;
 	      readOnly = false;
 	    } else {
 	      data = toBuffer(data);
@@ -1885,7 +1944,13 @@ function requireSender () {
 	      rsv1: false
 	    };
 
-	    if (this._deflating) {
+	    if (isBlob(data)) {
+	      if (this._state !== DEFAULT) {
+	        this.enqueue([this.getBlobData, data, false, options, cb]);
+	      } else {
+	        this.getBlobData(data, false, options, cb);
+	      }
+	    } else if (this._state !== DEFAULT) {
 	      this.enqueue([this.dispatch, data, false, options, cb]);
 	    } else {
 	      this.sendFrame(Sender.frame(data, options), cb);
@@ -1906,6 +1971,9 @@ function requireSender () {
 
 	    if (typeof data === 'string') {
 	      byteLength = Buffer.byteLength(data);
+	      readOnly = false;
+	    } else if (isBlob(data)) {
+	      byteLength = data.size;
 	      readOnly = false;
 	    } else {
 	      data = toBuffer(data);
@@ -1928,7 +1996,13 @@ function requireSender () {
 	      rsv1: false
 	    };
 
-	    if (this._deflating) {
+	    if (isBlob(data)) {
+	      if (this._state !== DEFAULT) {
+	        this.enqueue([this.getBlobData, data, false, options, cb]);
+	      } else {
+	        this.getBlobData(data, false, options, cb);
+	      }
+	    } else if (this._state !== DEFAULT) {
 	      this.enqueue([this.dispatch, data, false, options, cb]);
 	    } else {
 	      this.sendFrame(Sender.frame(data, options), cb);
@@ -1962,6 +2036,9 @@ function requireSender () {
 	    if (typeof data === 'string') {
 	      byteLength = Buffer.byteLength(data);
 	      readOnly = false;
+	    } else if (isBlob(data)) {
+	      byteLength = data.size;
+	      readOnly = false;
 	    } else {
 	      data = toBuffer(data);
 	      byteLength = data.length;
@@ -1989,38 +2066,92 @@ function requireSender () {
 
 	    if (options.fin) this._firstFragment = true;
 
-	    if (perMessageDeflate) {
-	      const opts = {
-	        [kByteLength]: byteLength,
-	        fin: options.fin,
-	        generateMask: this._generateMask,
-	        mask: options.mask,
-	        maskBuffer: this._maskBuffer,
-	        opcode,
-	        readOnly,
-	        rsv1
-	      };
+	    const opts = {
+	      [kByteLength]: byteLength,
+	      fin: options.fin,
+	      generateMask: this._generateMask,
+	      mask: options.mask,
+	      maskBuffer: this._maskBuffer,
+	      opcode,
+	      readOnly,
+	      rsv1
+	    };
 
-	      if (this._deflating) {
-	        this.enqueue([this.dispatch, data, this._compress, opts, cb]);
+	    if (isBlob(data)) {
+	      if (this._state !== DEFAULT) {
+	        this.enqueue([this.getBlobData, data, this._compress, opts, cb]);
 	      } else {
-	        this.dispatch(data, this._compress, opts, cb);
+	        this.getBlobData(data, this._compress, opts, cb);
 	      }
+	    } else if (this._state !== DEFAULT) {
+	      this.enqueue([this.dispatch, data, this._compress, opts, cb]);
 	    } else {
-	      this.sendFrame(
-	        Sender.frame(data, {
-	          [kByteLength]: byteLength,
-	          fin: options.fin,
-	          generateMask: this._generateMask,
-	          mask: options.mask,
-	          maskBuffer: this._maskBuffer,
-	          opcode,
-	          readOnly,
-	          rsv1: false
-	        }),
-	        cb
-	      );
+	      this.dispatch(data, this._compress, opts, cb);
 	    }
+	  }
+
+	  /**
+	   * Gets the contents of a blob as binary data.
+	   *
+	   * @param {Blob} blob The blob
+	   * @param {Boolean} [compress=false] Specifies whether or not to compress
+	   *     the data
+	   * @param {Object} options Options object
+	   * @param {Boolean} [options.fin=false] Specifies whether or not to set the
+	   *     FIN bit
+	   * @param {Function} [options.generateMask] The function used to generate the
+	   *     masking key
+	   * @param {Boolean} [options.mask=false] Specifies whether or not to mask
+	   *     `data`
+	   * @param {Buffer} [options.maskBuffer] The buffer used to store the masking
+	   *     key
+	   * @param {Number} options.opcode The opcode
+	   * @param {Boolean} [options.readOnly=false] Specifies whether `data` can be
+	   *     modified
+	   * @param {Boolean} [options.rsv1=false] Specifies whether or not to set the
+	   *     RSV1 bit
+	   * @param {Function} [cb] Callback
+	   * @private
+	   */
+	  getBlobData(blob, compress, options, cb) {
+	    this._bufferedBytes += options[kByteLength];
+	    this._state = GET_BLOB_DATA;
+
+	    blob
+	      .arrayBuffer()
+	      .then((arrayBuffer) => {
+	        if (this._socket.destroyed) {
+	          const err = new Error(
+	            'The socket was closed while the blob was being read'
+	          );
+
+	          //
+	          // `callCallbacks` is called in the next tick to ensure that errors
+	          // that might be thrown in the callbacks behave like errors thrown
+	          // outside the promise chain.
+	          //
+	          process.nextTick(callCallbacks, this, err, cb);
+	          return;
+	        }
+
+	        this._bufferedBytes -= options[kByteLength];
+	        const data = toBuffer(arrayBuffer);
+
+	        if (!compress) {
+	          this._state = DEFAULT;
+	          this.sendFrame(Sender.frame(data, options), cb);
+	          this.dequeue();
+	        } else {
+	          this.dispatch(data, compress, options, cb);
+	        }
+	      })
+	      .catch((err) => {
+	        //
+	        // `onError` is called in the next tick for the same reason that
+	        // `callCallbacks` above is.
+	        //
+	        process.nextTick(onError, this, err, cb);
+	      });
 	  }
 
 	  /**
@@ -2055,27 +2186,19 @@ function requireSender () {
 	    const perMessageDeflate = this._extensions[PerMessageDeflate.extensionName];
 
 	    this._bufferedBytes += options[kByteLength];
-	    this._deflating = true;
+	    this._state = DEFLATING;
 	    perMessageDeflate.compress(data, options.fin, (_, buf) => {
 	      if (this._socket.destroyed) {
 	        const err = new Error(
 	          'The socket was closed while data was being compressed'
 	        );
 
-	        if (typeof cb === 'function') cb(err);
-
-	        for (let i = 0; i < this._queue.length; i++) {
-	          const params = this._queue[i];
-	          const callback = params[params.length - 1];
-
-	          if (typeof callback === 'function') callback(err);
-	        }
-
+	        callCallbacks(this, err, cb);
 	        return;
 	      }
 
 	      this._bufferedBytes -= options[kByteLength];
-	      this._deflating = false;
+	      this._state = DEFAULT;
 	      options.readOnly = false;
 	      this.sendFrame(Sender.frame(buf, options), cb);
 	      this.dequeue();
@@ -2088,7 +2211,7 @@ function requireSender () {
 	   * @private
 	   */
 	  dequeue() {
-	    while (!this._deflating && this._queue.length) {
+	    while (this._state === DEFAULT && this._queue.length) {
 	      const params = this._queue.shift();
 
 	      this._bufferedBytes -= params[3][kByteLength];
@@ -2110,7 +2233,7 @@ function requireSender () {
 	  /**
 	   * Sends a frame.
 	   *
-	   * @param {Buffer[]} list The frame to send
+	   * @param {(Buffer | String)[]} list The frame to send
 	   * @param {Function} [cb] Callback
 	   * @private
 	   */
@@ -2127,6 +2250,38 @@ function requireSender () {
 	}
 
 	sender = Sender;
+
+	/**
+	 * Calls queued callbacks with an error.
+	 *
+	 * @param {Sender} sender The `Sender` instance
+	 * @param {Error} err The error to call the callbacks with
+	 * @param {Function} [cb] The first callback
+	 * @private
+	 */
+	function callCallbacks(sender, err, cb) {
+	  if (typeof cb === 'function') cb(err);
+
+	  for (let i = 0; i < sender._queue.length; i++) {
+	    const params = sender._queue[i];
+	    const callback = params[params.length - 1];
+
+	    if (typeof callback === 'function') callback(err);
+	  }
+	}
+
+	/**
+	 * Handles a `Sender` error.
+	 *
+	 * @param {Sender} sender The `Sender` instance
+	 * @param {Error} err The error
+	 * @param {Function} [cb] The first pending callback
+	 * @private
+	 */
+	function onError(sender, err, cb) {
+	  callCallbacks(sender, err, cb);
+	  sender.onerror(err);
+	}
 	return sender;
 }
 
@@ -2661,6 +2816,8 @@ function requireWebsocket () {
 	const PerMessageDeflate = requirePermessageDeflate();
 	const Receiver = requireReceiver();
 	const Sender = requireSender();
+	const { isBlob } = requireValidation();
+
 	const {
 	  BINARY_TYPES,
 	  EMPTY_BUFFER,
@@ -2705,6 +2862,7 @@ function requireWebsocket () {
 	    this._closeFrameSent = false;
 	    this._closeMessage = EMPTY_BUFFER;
 	    this._closeTimer = null;
+	    this._errorEmitted = false;
 	    this._extensions = {};
 	    this._paused = false;
 	    this._protocol = '';
@@ -2737,9 +2895,8 @@ function requireWebsocket () {
 	  }
 
 	  /**
-	   * This deviates from the WHATWG interface since ws doesn't support the
-	   * required default "blob" type (instead we define a custom "nodebuffer"
-	   * type).
+	   * For historical reasons, the custom "nodebuffer" type is used by the default
+	   * instead of "blob".
 	   *
 	   * @type {String}
 	   */
@@ -2860,11 +3017,14 @@ function requireWebsocket () {
 	      skipUTF8Validation: options.skipUTF8Validation
 	    });
 
-	    this._sender = new Sender(socket, this._extensions, options.generateMask);
+	    const sender = new Sender(socket, this._extensions, options.generateMask);
+
 	    this._receiver = receiver;
+	    this._sender = sender;
 	    this._socket = socket;
 
 	    receiver[kWebSocket] = this;
+	    sender[kWebSocket] = this;
 	    socket[kWebSocket] = this;
 
 	    receiver.on('conclude', receiverOnConclude);
@@ -2873,6 +3033,8 @@ function requireWebsocket () {
 	    receiver.on('message', receiverOnMessage);
 	    receiver.on('ping', receiverOnPing);
 	    receiver.on('pong', receiverOnPong);
+
+	    sender.onerror = senderOnError;
 
 	    //
 	    // These methods may not be available if `socket` is just a `Duplex`.
@@ -2969,13 +3131,7 @@ function requireWebsocket () {
 	      }
 	    });
 
-	    //
-	    // Specify a timeout for the closing handshake to complete.
-	    //
-	    this._closeTimer = setTimeout(
-	      this._socket.destroy.bind(this._socket),
-	      closeTimeout
-	    );
+	    setCloseTimer(this);
 	  }
 
 	  /**
@@ -3575,7 +3731,9 @@ function requireWebsocket () {
 
 	    req = websocket._req = null;
 
-	    if (res.headers.upgrade.toLowerCase() !== 'websocket') {
+	    const upgrade = res.headers.upgrade;
+
+	    if (upgrade === undefined || upgrade.toLowerCase() !== 'websocket') {
 	      abortHandshake(websocket, socket, 'Invalid Upgrade header');
 	      return;
 	    }
@@ -3677,6 +3835,11 @@ function requireWebsocket () {
 	 */
 	function emitErrorAndClose(websocket, err) {
 	  websocket._readyState = WebSocket.CLOSING;
+	  //
+	  // The following assignment is practically useless and is done only for
+	  // consistency.
+	  //
+	  websocket._errorEmitted = true;
 	  websocket.emit('error', err);
 	  websocket.emitClose();
 	}
@@ -3757,7 +3920,7 @@ function requireWebsocket () {
 	 */
 	function sendAfterClose(websocket, data, cb) {
 	  if (data) {
-	    const length = toBuffer(data).length;
+	    const length = isBlob(data) ? data.size : toBuffer(data).length;
 
 	    //
 	    // The `_bufferedAmount` property is used only when the peer is a client and
@@ -3833,7 +3996,10 @@ function requireWebsocket () {
 	    websocket.close(err[kStatusCode]);
 	  }
 
-	  websocket.emit('error', err);
+	  if (!websocket._errorEmitted) {
+	    websocket._errorEmitted = true;
+	    websocket.emit('error', err);
+	  }
 	}
 
 	/**
@@ -3887,6 +4053,47 @@ function requireWebsocket () {
 	 */
 	function resume(stream) {
 	  stream.resume();
+	}
+
+	/**
+	 * The `Sender` error event handler.
+	 *
+	 * @param {Error} The error
+	 * @private
+	 */
+	function senderOnError(err) {
+	  const websocket = this[kWebSocket];
+
+	  if (websocket.readyState === WebSocket.CLOSED) return;
+	  if (websocket.readyState === WebSocket.OPEN) {
+	    websocket._readyState = WebSocket.CLOSING;
+	    setCloseTimer(websocket);
+	  }
+
+	  //
+	  // `socket.end()` is used instead of `socket.destroy()` to allow the other
+	  // peer to finish sending queued data. There is no need to set a timer here
+	  // because `CLOSING` means that it is already set or not needed.
+	  //
+	  this._socket.end();
+
+	  if (!websocket._errorEmitted) {
+	    websocket._errorEmitted = true;
+	    websocket.emit('error', err);
+	  }
+	}
+
+	/**
+	 * Set a timer to destroy the underlying raw socket of a WebSocket.
+	 *
+	 * @param {WebSocket} websocket The WebSocket instance
+	 * @private
+	 */
+	function setCloseTimer(websocket) {
+	  websocket._closeTimer = setTimeout(
+	    websocket._socket.destroy.bind(websocket._socket),
+	    closeTimeout
+	  );
 	}
 
 	/**
@@ -3984,6 +4191,8 @@ function requireWebsocket () {
 	return websocket;
 }
 
+/* eslint no-unused-vars: ["error", { "varsIgnorePattern": "^WebSocket$" }] */
+
 var stream$2;
 var hasRequiredStream$2;
 
@@ -3991,6 +4200,7 @@ function requireStream$2 () {
 	if (hasRequiredStream$2) return stream$2;
 	hasRequiredStream$2 = 1;
 
+	requireWebsocket();
 	const { Duplex } = require$$0$3;
 
 	/**
@@ -4462,6 +4672,7 @@ function requireWebsocketServer () {
 	    socket.on('error', socketOnError);
 
 	    const key = req.headers['sec-websocket-key'];
+	    const upgrade = req.headers.upgrade;
 	    const version = +req.headers['sec-websocket-version'];
 
 	    if (req.method !== 'GET') {
@@ -4470,13 +4681,13 @@ function requireWebsocketServer () {
 	      return;
 	    }
 
-	    if (req.headers.upgrade.toLowerCase() !== 'websocket') {
+	    if (upgrade === undefined || upgrade.toLowerCase() !== 'websocket') {
 	      const message = 'Invalid Upgrade header';
 	      abortHandshakeOrEmitwsClientError(this, req, socket, 400, message);
 	      return;
 	    }
 
-	    if (!key || !keyRegex.test(key)) {
+	    if (key === undefined || !keyRegex.test(key)) {
 	      const message = 'Missing or invalid Sec-WebSocket-Key header';
 	      abortHandshakeOrEmitwsClientError(this, req, socket, 400, message);
 	      return;
@@ -4962,7 +5173,7 @@ function requireV1 () {
 	        updateV1State(_state, now, rnds);
 	        bytes = v1Bytes(rnds, _state.msecs, _state.nsecs, isV6 ? undefined : _state.clockseq, isV6 ? undefined : _state.node, buf, offset);
 	    }
-	    return buf ? bytes : (0, stringify_js_1.unsafeStringify)(bytes);
+	    return buf ?? (0, stringify_js_1.unsafeStringify)(bytes);
 	}
 	function updateV1State(state, now, rnds) {
 	    state.msecs ??= -Infinity;
@@ -5318,7 +5529,7 @@ function requireV7 () {
 	        updateV7State(_state, now, rnds);
 	        bytes = v7Bytes(rnds, _state.msecs, _state.seq, buf, offset);
 	    }
-	    return buf ? bytes : (0, stringify_js_1.unsafeStringify)(bytes);
+	    return buf ?? (0, stringify_js_1.unsafeStringify)(bytes);
 	}
 	function updateV7State(state, now, rnds) {
 	    state.msecs ??= -Infinity;
@@ -30131,10 +30342,10 @@ function requirePlugin () {
 	 *  keys: [
 	 *  {
 	 *      "data": {},
-	 *      "cid": "com.eniac.test.wheel",
+	 *      "cid": "com.eniac.example.wheel",
 	 *      "bg": 0,
 	 *      "width": 360,
-	 *      "pluginID": "com.eniac.test",
+	 *      "pluginID": "com.eniac.example",
 	 *      "typeOverride": "plugin",
 	 *      "wheel": {
 	 *      "step": 5
@@ -30156,25 +30367,25 @@ function requirePlugin () {
 	    feedbackKeys = [];
 	    for (let key of data) {
 	        keyData[key.uid] = key;
-	        if (key.cid === 'com.eniac.test.counter') {
+	        if (key.cid === 'com.eniac.example.counter') {
 	            keyData[key.uid].counter = parseInt(key.data.rangeMin);
 	            key.style.showIcon = false;
 	            key.style.showTitle = true;
 	            key.title = 'Click Me!';
 	            plugin.draw(serialNumber, key, 'draw');
 	        }
-	        else if (key.cid === 'com.eniac.test.slider') {
+	        else if (key.cid === 'com.eniac.example.slider') {
 	            plugin.set(serialNumber, key, {
 	                value: 50
 	            });
 	        }
-	        else if (key.cid === 'com.eniac.test.cyclebutton') {
+	        else if (key.cid === 'com.eniac.example.cyclebutton') {
 	            logger.debug('Setting state to 3');
 	            plugin.set(serialNumber, key, {
 	                state: 3
 	            });
 	        }
-	        else if (key.cid === 'com.eniac.test.apitest') {
+	        else if (key.cid === 'com.eniac.example.apitest') {
 	            feedbackKeys.push(key);
 	        }
 	    }
@@ -30193,13 +30404,13 @@ function requirePlugin () {
 	    logger.info('Received plugin.data:', payload);
 	    const data = payload.data;
 	    const serialNumber = payload.serialNumber;
-	    if (data.key.cid === "com.eniac.test.cyclebutton") {
+	    if (data.key.cid === "com.eniac.example.cyclebutton") {
 	        return {
 	            "status": "success",
 	            "message": `Last state: ${data.state}`
 	        }
 	    }
-	    else if (data.key.cid === "com.eniac.test.counter") {
+	    else if (data.key.cid === "com.eniac.example.counter") {
 	        const key = data.key;
 	        key.style.showIcon = false;
 	        key.style.showTitle = true;
@@ -30210,7 +30421,7 @@ function requirePlugin () {
 	        key.title = `${keyData[key.uid].counter}`;
 	        plugin.draw(serialNumber, key, 'draw');
 	    } 
-	    else if (data.key.cid === 'com.eniac.test.wheel') {
+	    else if (data.key.cid === 'com.eniac.example.wheel') {
 	      for (let key of feedbackKeys) {
 	          const bg = generateRainbowCanvas(key.width, `${data.state} ${data.delta || "0"}`);
 	          plugin.draw(serialNumber, key, 'base64', bg);

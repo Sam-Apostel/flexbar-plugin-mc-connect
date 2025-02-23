@@ -1,4 +1,4 @@
-const { plugin, logger, pluginPath, resourcesPath } = require("flexdesigner")
+const { plugin, logger, pluginPath, resourcesPath } = require("@eniac/flexdesigner")
 const path = require('path')
 const { createCanvas } = require('@napi-rs/canvas');
 
@@ -117,10 +117,10 @@ plugin.on('device.status', (devices) => {
  *  keys: [
  *  {
  *      "data": {},
- *      "cid": "com.eniac.test.wheel",
+ *      "cid": "com.eniac.example.wheel",
  *      "bg": 0,
  *      "width": 360,
- *      "pluginID": "com.eniac.test",
+ *      "pluginID": "com.eniac.example",
  *      "typeOverride": "plugin",
  *      "wheel": {
  *      "step": 5
@@ -142,25 +142,25 @@ plugin.on('plugin.alive', (payload) => {
     feedbackKeys = []
     for (let key of data) {
         keyData[key.uid] = key
-        if (key.cid === 'com.eniac.test.counter') {
+        if (key.cid === 'com.eniac.example.counter') {
             keyData[key.uid].counter = parseInt(key.data.rangeMin)
             key.style.showIcon = false
             key.style.showTitle = true
             key.title = 'Click Me!'
             plugin.draw(serialNumber, key, 'draw')
         }
-        else if (key.cid === 'com.eniac.test.slider') {
+        else if (key.cid === 'com.eniac.example.slider') {
             plugin.set(serialNumber, key, {
                 value: 50
             })
         }
-        else if (key.cid === 'com.eniac.test.cyclebutton') {
+        else if (key.cid === 'com.eniac.example.cyclebutton') {
             logger.debug('Setting state to 3')
             plugin.set(serialNumber, key, {
                 state: 3
             })
         }
-        else if (key.cid === 'com.eniac.test.apitest') {
+        else if (key.cid === 'com.eniac.example.apitest') {
             feedbackKeys.push(key)
         }
     }
@@ -179,13 +179,13 @@ plugin.on('plugin.data', (payload) => {
     logger.info('Received plugin.data:', payload)
     const data = payload.data
     const serialNumber = payload.serialNumber
-    if (data.key.cid === "com.eniac.test.cyclebutton") {
+    if (data.key.cid === "com.eniac.example.cyclebutton") {
         return {
             "status": "success",
             "message": `Last state: ${data.state}`
         }
     }
-    else if (data.key.cid === "com.eniac.test.counter") {
+    else if (data.key.cid === "com.eniac.example.counter") {
         const key = data.key
         key.style.showIcon = false
         key.style.showTitle = true
@@ -196,7 +196,7 @@ plugin.on('plugin.data', (payload) => {
         key.title = `${keyData[key.uid].counter}`
         plugin.draw(serialNumber, key, 'draw')
     } 
-    else if (data.key.cid === 'com.eniac.test.wheel') {
+    else if (data.key.cid === 'com.eniac.example.wheel') {
       for (let key of feedbackKeys) {
           const bg = generateRainbowCanvas(key.width, `${data.state} ${data.delta || "0"}`)
           plugin.draw(serialNumber, key, 'base64', bg)

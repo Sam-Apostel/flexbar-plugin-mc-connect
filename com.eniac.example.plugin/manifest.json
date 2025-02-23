@@ -1,11 +1,11 @@
 {
-    "name": "Test",
-    "uuid": "com.eniac.test",
+    "name": "Example",
+    "uuid": "com.eniac.example",
     "version": "1.0.0",
     "author": "ENIAC",
     "entry": "backend/plugin.cjs",
-    "description": "test",
-    "repo": "https://github.com/ENIAC-Tech/FlexDesigner-SDK",
+    "description": "Example plugin for FlexDesigner",
+    "repo": "https://github.com/ENIAC-Tech/Plugin-Example",
     "sdk": {
         "version": "1.0.0"
     },
@@ -38,7 +38,7 @@
             {
                 "title": "$Counter.Title",
                 "tip": "$Counter.Tip",
-                "cid": "com.eniac.test.counter",
+                "cid": "com.eniac.example.counter",
                 "config": {
                     "keyType": "default",
                     "clickable": true,
@@ -59,7 +59,7 @@
             {
                 "title": "$CycleButton.Title",
                 "tip": "$CycleButton.Tip",
-                "cid": "com.eniac.test.cyclebutton",
+                "cid": "com.eniac.example.cyclebutton",
                 "config": {
                     "keyType": "multiState",
                     "platform": [
@@ -123,7 +123,7 @@
             {
                 "title": "$Slider.Title",
                 "tip": "$Slider.Tip",
-                "cid": "com.eniac.test.slider",
+                "cid": "com.eniac.example.slider",
                 "config": {
                     "keyType": "slider",
                     "platform": [
@@ -149,7 +149,7 @@
             {
                 "title": "$Wheel.Title",
                 "tip": "$Wheel.Tip",
-                "cid": "com.eniac.test.wheel",
+                "cid": "com.eniac.example.wheel",
                 "config": {
                     "keyType": "wheel"
                 },
@@ -179,7 +179,7 @@
                     {
                         "title": "$APITest.Title",
                         "tip": "$APITest.Tip",
-                        "cid": "com.eniac.test.apitest",
+                        "cid": "com.eniac.example.apitest",
                         "config": {
                             "keyType": "default",
                             "clickable": false,

@@ -3,13 +3,13 @@
     "build": "rollup -c",
     "dev": "npm-run-all plugin:unlink plugin:link -p plugin:watch plugin:debug",
     "plugin:watch": "rollup -c -w --watch.onEnd=\"npm run plugin:restart\"",
-    "plugin:unlink": "flexcli plugin unlink --uuid com.eniac.test --silent",
-    "plugin:link": "flexcli plugin link --path com.eniac.test.plugin --uuid com.eniac.test --start false",
-    "plugin:restart": "flexcli plugin restart --uuid=com.eniac.test",
-    "plugin:debug": "flexcli plugin debug --uuid=com.eniac.test",
-    "plugin:validate": "flexcli plugin validate --path com.eniac.test.plugin",
-    "plugin:pack": "flexcli plugin pack --path com.eniac.test.plugin",
-    "plugin:install": "flexcli plugin install --path ./com.eniac.test.flexplugin --force"
+    "plugin:unlink": "flexcli plugin unlink --uuid com.eniac.example --silent",
+    "plugin:link": "flexcli plugin link --path com.eniac.example.plugin --uuid com.eniac.example --start false",
+    "plugin:restart": "flexcli plugin restart --uuid=com.eniac.example",
+    "plugin:debug": "flexcli plugin debug --uuid=com.eniac.example",
+    "plugin:validate": "flexcli plugin validate --path com.eniac.example.plugin",
+    "plugin:pack": "flexcli plugin pack --path com.eniac.example.plugin",
+    "plugin:install": "flexcli plugin install --path ./com.eniac.example.flexplugin --force"
   },
   "type": "commonjs",
   "devDependencies": {
@@ -23,6 +23,7 @@
     "rollup": "^4.0.2"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.65"
+    "@napi-rs/canvas": "^0.1.65",
+    "@eniac/flexdesigner": "^1.0.1"
   }
 }
