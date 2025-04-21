@@ -75,6 +75,18 @@ plugin.on('system.actwin', (payload) => {
 })
 
 /**
+ * Called when a shortcut is pressed
+ * @param {object} payload shortcut data
+ * {
+ *  shortcut: 'CommandOrControl+F1'
+ * }
+ * @note Register shortcut in manifest.json, find available shortcuts: https://www.electronjs.org/docs/latest/api/accelerator
+ */
+plugin.on('system.shortcut', (payload) => {
+    logger.info('Shortcut pressed:', payload)
+})
+
+/**
  * Called when received message from UI send by this.$fd.sendToBackend
  * @param {object} payload message sent from UI
  */
@@ -206,6 +218,22 @@ plugin.on('plugin.data', (payload) => {
 
 // Connect to flexdesigner and start the plugin
 plugin.start()
+
+setInterval(() => {
+    const value = parseInt((Math.random() * 100000))
+    plugin.sendChartData([
+        {
+            label: 'Custom Plugin Data', // Label to display in the FlexDesigner
+            value: value / 1024, // Value after conversion
+            unit: 'KB', // Unit after conversion
+            baseUnit: 'B', // Unit before conversion
+            baseVal: value, // Value before conversion
+            maxLen: 2, // Maximum length of the value, 1-4
+            category: 'custom', // Category of the value
+            key: 'custom' // Key of the value, should be unique of multiple values
+        }
+    ])
+}, 1000);
 
 /**
  * @brief Generates a PNG base64 string with a rainbow gradient and a centered number.

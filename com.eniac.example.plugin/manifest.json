@@ -1,7 +1,7 @@
 {
     "name": "Example",
     "uuid": "com.eniac.example",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "author": "ENIAC",
     "entry": "backend/plugin.cjs",
     "description": "Example plugin for FlexDesigner",
@@ -29,6 +29,7 @@
         }
     ],
     "configPage": "global_config",
+    "shortcuts": ["CommandOrControl+F1"],
     "keyLibrary": {
         "title": "Example",
         "style": {
