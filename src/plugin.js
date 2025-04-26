@@ -87,6 +87,18 @@ plugin.on('system.shortcut', (payload) => {
 })
 
 /**
+ * Called when plugin config is updated
+ * @param {object} payload plugin config
+ * {
+ *  config: {}
+ * }
+ */
+plugin.on('plugin.config.updated', (payload) => {
+    logger.info('Plugin config updated:', payload)
+})
+
+
+/**
  * Called when received message from UI send by this.$fd.sendToBackend
  * @param {object} payload message sent from UI
  */
@@ -231,6 +243,16 @@ setInterval(() => {
             maxLen: 2, // Maximum length of the value, 1-4
             category: 'custom', // Category of the value
             key: 'custom' // Key of the value, should be unique of multiple values
+        }
+    ])
+}, 1000);
+
+setTimeout(() => {
+    // Register a shortcut
+    plugin.updateShortcuts([
+        {
+            shortcut: 'CommandOrControl+F2',
+            action: 'register'
         }
     ])
 }, 1000);

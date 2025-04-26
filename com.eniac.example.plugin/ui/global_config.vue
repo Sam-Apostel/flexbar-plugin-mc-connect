@@ -42,10 +42,10 @@ export default {
     methods: {
         saveConfig() {
             this.$fd.setConfig(this.modelValue.config)
+            this.$fd.showSnackbarMessage("success", 'Config updated');
         }
     },
     mounted() {
-        console.log(this.modelValue)
     }
 };
 </script>
