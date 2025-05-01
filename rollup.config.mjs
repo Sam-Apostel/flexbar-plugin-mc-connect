@@ -7,7 +7,7 @@ import json from '@rollup/plugin-json';
 import { glob } from 'glob'
 import fs from 'node:fs';
 const isWatching = !!process.env.ROLLUP_WATCH;
-const flexPlugin = "com.eniac.example.plugin";
+const flexPlugin = "land.sams.mc-connect.plugin";
 
 /**
  * @type {import('rollup').RollupOptions}

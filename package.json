@@ -1,29 +1,36 @@
 {
+  "name": "mc-connect",
   "scripts": {
     "build": "rollup -c",
     "dev": "npm-run-all plugin:unlink plugin:link -p plugin:watch plugin:debug",
     "plugin:watch": "rollup -c -w --watch.onEnd=\"npm run plugin:restart\"",
-    "plugin:unlink": "flexcli plugin unlink --uuid com.eniac.example --silent",
-    "plugin:link": "flexcli plugin link --path com.eniac.example.plugin --uuid com.eniac.example --start false",
-    "plugin:restart": "flexcli plugin restart --uuid=com.eniac.example",
-    "plugin:debug": "flexcli plugin debug --uuid=com.eniac.example",
-    "plugin:validate": "flexcli plugin validate --path com.eniac.example.plugin",
-    "plugin:pack": "flexcli plugin pack --path com.eniac.example.plugin",
-    "plugin:install": "flexcli plugin install --path ./com.eniac.example.flexplugin --force"
+    "plugin:unlink": "flexcli plugin unlink --uuid land.sams.mc-connect --silent",
+    "plugin:link": "flexcli plugin link --path land.sams.mc-connect.plugin --uuid land.sams.mc-connect --start false",
+    "plugin:restart": "flexcli plugin restart --uuid=land.sams.mc-connect",
+    "plugin:debug": "flexcli plugin debug --uuid=land.sams.mc-connect",
+    "plugin:validate": "flexcli plugin validate --path land.sams.mc-connect.plugin",
+    "plugin:pack": "flexcli plugin pack --path land.sams.mc-connect.plugin",
+    "plugin:install": "flexcli plugin install --path ./land.sams.mc-connect.flexplugin --force",
+    "postinstall": "patch-package"
   },
   "type": "commonjs",
   "devDependencies": {
+    "@eniac/flexcli": "^1.0.6",
     "@rollup/plugin-commonjs": "^28.0.0",
+    "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^15.2.2",
     "@rollup/plugin-terser": "^0.4.4",
     "@rollup/plugin-typescript": "^12.1.0",
-    "@rollup/plugin-json": "^6.1.0",
     "glob": "^11.0.1",
     "npm-run-all": "^4.1.5",
+    "patch-package": "^8.0.0",
+    "postinstall-postinstall": "^2.1.0",
     "rollup": "^4.0.2"
   },
   "dependencies": {
+    "@eniac/flexdesigner": "^1.0.1",
     "@napi-rs/canvas": "^0.1.65",
-    "@eniac/flexdesigner": "^1.0.1"
+    "isomorphic-ws": "^5.0.0",
+    "ws": "^8.18.1"
   }
 }

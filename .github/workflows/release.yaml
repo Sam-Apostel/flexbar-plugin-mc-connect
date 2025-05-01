@@ -33,4 +33,4 @@ jobs:
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: com.eniac.example.flexplugin
+          files: land.sams.mc-connect.flexplugin

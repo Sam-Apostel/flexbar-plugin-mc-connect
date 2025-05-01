@@ -1,0 +1,71 @@
+{
+    "name": "MC-Connect",
+    "uuid": "land.sams.mc-connect",
+    "version": "1.1.1",
+    "author": "Sam Apostel",
+    "entry": "backend/plugin.cjs",
+    "description": "Connect the flexbar to minecraft",
+    "repo": "https://github.com/Sam-Apostel/mc-connect",
+    "sdk": {
+        "version": "1.0.0"
+    },
+    "software": {
+        "minimumVersion": "1.0.0"
+    },
+    "os": [
+        {
+            "platform": "mac",
+            "minimumVersion": "10.15"
+        },
+        {
+            "platform": "windows",
+            "minimumVersion": "10"
+        }
+    ],
+    "device": [
+        {
+            "name": "flexbar",
+            "version": "1.0.0"
+        }
+    ],
+    "configPage": "global_config",
+    "keyLibrary": {
+        "title": "Minecraft",
+        "style": {
+            "icon": "mdi mdi-minecraft"
+        },
+        "children": [
+            {
+                "title": "$Inventory.Title",
+                "tip": "$Inventory.Tip",
+                "cid": "land.sams.mc-connect.inventory",
+                "config": {
+                    "keyType": "default",
+                    "clickable": true,
+                    "platform": [
+                        "windows",
+                        "mac"
+                    ]
+                },
+                "style": {
+                    "icon": "mdi mdi-dock-bottom",
+                    "width": 2160
+                },
+                "data": {
+                    "slot": 0
+                }
+            }
+        ]
+    },
+    "local": {
+        "en": {
+            "Inventory": {
+                "Title": "Inventory",
+                "Tip": "Control an inventory slot",
+                "UI": {
+                    "Slot": "Slot index"
+                }
+            }
+        }
+    }
+}
