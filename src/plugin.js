@@ -1,10 +1,10 @@
-const { plugin, logger, resourcesPath } = require("@eniac/flexdesigner")
-const { createCanvas, GlobalFonts, loadImage } = require('@napi-rs/canvas');
+const {plugin, logger, resourcesPath} = require("@eniac/flexdesigner")
+const {createCanvas, GlobalFonts, loadImage} = require('@napi-rs/canvas');
 const WebSocket = require('isomorphic-ws');
-const { join } = require('path')
+const {join} = require('path')
 
 let bars = [];
-const inventoryState = Array.from({ length: 41 });
+const inventoryState = Array.from({length: 41});
 
 GlobalFonts.registerFromPath(join(resourcesPath, 'MinecraftRegular-Bmg3.otf'), 'Apple Emoji')
 
@@ -62,14 +62,15 @@ plugin.on('plugin.alive', (payload) => {
     logger.info('Plugin alive');
     const data = payload.keys
     const serialNumber = payload.serialNumber;
-    const bar = { serialNumber, keys: [] };
+    const bar = {serialNumber, keys: []};
     bars.push(bar)
     for (let key of data) {
-        if (key.cid === 'land.sams.mc-connect.inventory') {
+        if (key.cid === 'land.sams.mc-connect.inventory' || key.cid === 'land.sams.mc-connect.armour') {
+            bar.keys.push(key)
             generateInventory(key.width, inventoryState, key.data.slot).then(bg => {
                 plugin.draw(serialNumber, key, 'base64', bg)
             });
-            bar.keys.push(key)
+
         }
     }
 })
@@ -77,20 +78,18 @@ plugin.on('plugin.alive', (payload) => {
 
 /**
  * Called when user interacts with a key
- * @param {object} payload key data 
+ * @param {object} payload key data
  * {
- *  serialNumber, 
+ *  serialNumber,
  *  data
  * }
  */
 plugin.on('plugin.data', (payload) => {
-    // logger.info('Received plugin.data:', payload)
     const data = payload.data
     const serialNumber = payload.serialNumber
     const key = data.key;
-    if (key.cid === "land.sams.mc-connect.inventory") {
-        // TODO: send key click event to ws
-        ws.send(JSON.stringify({ slot: key.data.slot }));
+    if (key.cid === 'land.sams.mc-connect.inventory' || key.cid === 'land.sams.mc-connect.inventory') {
+        ws.send(JSON.stringify({slot: key.data.slot}));
         generateInventory(key.width, inventoryState, key.data.slot).then(bg => {
             plugin.draw(serialNumber, key, 'base64', bg)
         });
@@ -102,14 +101,16 @@ plugin.start()
 /**
  * @param {number} width - The width of the canvas.
  * @param {Array<{ name: string; count: number; img: string; id: string }>} inventory
- * @param {number} slot
+ * @param {{ data: { slot?: number }, cid: string }} key
  * @return {Promise<string>} The PNG base64 string with MIME type.
  */
-async function generateInventory(width, inventory, slot) {
+async function generateInventory(width, inventory, key) {
+    const slot = key.data.slot;
+
     const height = 60;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
-  
+
     ctx.fillStyle = '#e0e0e0';
     ctx.fillRect(0, 0, 63, height);
 
@@ -120,7 +121,8 @@ async function generateInventory(width, inventory, slot) {
     ctx.fillRect(5, 5, 60 - 5, height - 8);
 
 
-    await drawItem(ctx, inventory[slot]);
+    if (key.cid === 'land.sams.mc-connect.inventory') await drawItem(ctx, inventory[slot]);
+    if (key.cid === 'land.sams.mc-connect.armour') await drawArmour(ctx, inventory[36], inventory[37], inventory[38], inventory[39])
 
     return canvas.toDataURL('image/png');
 }
@@ -130,11 +132,7 @@ async function drawItem(ctx, item) {
     if (!item) return;
     if (item.count === 0) return;
 
-    const imagePath = join(resourcesPath, 'assets', `${item.id.split('.').at(-1).toUpperCase()}.png`)
-    const image = await loadImage(imagePath);
-
-    ctx.drawImage(image, 4, 4, 54, 54);
-
+    await draw(ctx, item, 4, 4, 54, 54);
 
     if (item.count === 1) return;
 
@@ -148,4 +146,20 @@ async function drawItem(ctx, item) {
 
     ctx.fillStyle = 'white';
     ctx.fillText(item.count.toString(), 61, 48);
+}
+
+async function drawArmour(ctx, boots, leggings, chestplate, helmet) {
+    return await Promise.all([
+        draw(ctx, boots, 22, 41, 16, 16),
+        draw(ctx, leggings, 22, 29, 16, 16),
+        draw(ctx, chestplate, 22, 15, 16, 16),
+        draw(ctx, helmet, 22, 4, 16, 16),
+    ]);
+}
+
+async function draw(ctx, item, x, y, width, height) {
+    const imagePath = join(resourcesPath, 'assets', `${item.id.split('.').at(-1).toUpperCase()}.png`)
+    const image = await loadImage(imagePath);
+
+    ctx.drawImage(image, x, y, width, height);
 }

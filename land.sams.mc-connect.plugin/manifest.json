@@ -1,7 +1,7 @@
 {
     "name": "MC-Connect",
     "uuid": "land.sams.mc-connect",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "author": "Sam Apostel",
     "entry": "backend/plugin.cjs",
     "description": "Connect the flexbar to minecraft",
@@ -48,11 +48,30 @@
                     ]
                 },
                 "style": {
-                    "icon": "mdi mdi-dock-bottom",
-                    "width": 2160
+                    "icon": "",
+                    "width": 70
                 },
                 "data": {
                     "slot": 0
+                }
+            },
+            {
+                "title": "$Armour.Title",
+                "tip": "$Armour.Tip",
+                "cid": "land.sams.mc-connect.armour",
+                "config": {
+                    "keyType": "default",
+                    "clickable": false,
+                    "platform": [
+                        "windows",
+                        "mac"
+                    ]
+                },
+                "style": {
+                    "icon": "",
+                    "width": 70
+                },
+                "data": {
                 }
             }
         ]
@@ -61,10 +80,14 @@
         "en": {
             "Inventory": {
                 "Title": "Inventory",
-                "Tip": "Control an inventory slot",
+                "Tip": "Control a hotbar slot",
                 "UI": {
                     "Slot": "Slot index"
                 }
+            },
+            "Armour": {
+                "Title": "Armour",
+                "Tip": "View your equipped armour"
             }
         }
     }

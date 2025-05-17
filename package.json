@@ -10,27 +10,25 @@
     "plugin:debug": "flexcli plugin debug --uuid=land.sams.mc-connect",
     "plugin:validate": "flexcli plugin validate --path land.sams.mc-connect.plugin",
     "plugin:pack": "flexcli plugin pack --path land.sams.mc-connect.plugin",
-    "plugin:install": "flexcli plugin install --path ./land.sams.mc-connect.flexplugin --force",
-    "postinstall": "patch-package"
+    "plugin:install": "flexcli plugin install --path ./land.sams.mc-connect.flexplugin --force"
   },
   "type": "commonjs",
   "devDependencies": {
     "@eniac/flexcli": "^1.0.6",
-    "@rollup/plugin-commonjs": "^28.0.0",
+    "@rollup/plugin-commonjs": "^28.0.3",
     "@rollup/plugin-json": "^6.1.0",
-    "@rollup/plugin-node-resolve": "^15.2.2",
+    "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-terser": "^0.4.4",
-    "@rollup/plugin-typescript": "^12.1.0",
-    "glob": "^11.0.1",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "glob": "^11.0.2",
     "npm-run-all": "^4.1.5",
-    "patch-package": "^8.0.0",
     "postinstall-postinstall": "^2.1.0",
-    "rollup": "^4.0.2"
+    "rollup": "^4.40.2"
   },
   "dependencies": {
-    "@eniac/flexdesigner": "^1.0.1",
-    "@napi-rs/canvas": "^0.1.65",
+    "@eniac/flexdesigner": "^1.0.4",
+    "@napi-rs/canvas": "^0.1.70",
     "isomorphic-ws": "^5.0.0",
-    "ws": "^8.18.1"
+    "ws": "^8.18.2"
   }
 }
