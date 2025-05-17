@@ -3,12 +3,13 @@ const {createCanvas, GlobalFonts, loadImage} = require('@napi-rs/canvas');
 const WebSocket = require('isomorphic-ws');
 const {join} = require('path')
 
-let bars = [];
-const inventoryState = Array.from({length: 41});
+let bars = new Map();
+let inventoryState = Array.from({length: 41});
 
 GlobalFonts.registerFromPath(join(resourcesPath, 'MinecraftRegular-Bmg3.otf'), 'Apple Emoji')
 
 const ws = new WebSocket("ws://localhost:28887");
+
 ws.onopen = () => console.log("connected!");
 ws.onmessage = (e) => {
     // update inventoryState
@@ -17,18 +18,17 @@ ws.onmessage = (e) => {
             name: item.name,
             id: item.id,
             count: item.count,
-            img: item.base64
         };
     });
 
-    bars.forEach(bar => bar.keys.forEach(key => {
-        generateInventory(key.width, inventoryState, key.data.slot).then(bg =>
-            plugin.draw(bar.serialNumber, key, 'base64', bg)
+    Array.from(bars.entries()).forEach(([serialNumber, bar]) => bar.keys.forEach(key => {
+        generateInventory(key.width, inventoryState, key).then(bg =>
+            plugin.draw(serialNumber, key, 'base64', bg)
         );
     }));
 };
 ws.onclose = () => {
-    inventoryState.forEach((slot) => slot = {});
+    inventoryState = Array.from({length: 41});
 };
 
 
@@ -62,12 +62,12 @@ plugin.on('plugin.alive', (payload) => {
     logger.info('Plugin alive');
     const data = payload.keys
     const serialNumber = payload.serialNumber;
-    const bar = {serialNumber, keys: []};
-    bars.push(bar)
+    const bar = { keys: [] };
+    bars.set(serialNumber, bar)
     for (let key of data) {
         if (key.cid === 'land.sams.mc-connect.inventory' || key.cid === 'land.sams.mc-connect.armour') {
             bar.keys.push(key)
-            generateInventory(key.width, inventoryState, key.data.slot).then(bg => {
+            generateInventory(key.width, inventoryState, key).then(bg => {
                 plugin.draw(serialNumber, key, 'base64', bg)
             });
 
@@ -86,13 +86,9 @@ plugin.on('plugin.alive', (payload) => {
  */
 plugin.on('plugin.data', (payload) => {
     const data = payload.data
-    const serialNumber = payload.serialNumber
     const key = data.key;
-    if (key.cid === 'land.sams.mc-connect.inventory' || key.cid === 'land.sams.mc-connect.inventory') {
+    if (key.cid === 'land.sams.mc-connect.inventory') {
         ws.send(JSON.stringify({slot: key.data.slot}));
-        generateInventory(key.width, inventoryState, key.data.slot).then(bg => {
-            plugin.draw(serialNumber, key, 'base64', bg)
-        });
     }
 })
 
@@ -111,17 +107,19 @@ async function generateInventory(width, inventory, key) {
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = '#e0e0e0';
-    ctx.fillRect(0, 0, 63, height);
+    if (key.cid === 'land.sams.mc-connect.inventory') {
+        ctx.fillStyle = '#e0e0e0';
+        ctx.fillRect(0, 0, 63, height);
 
-    ctx.fillStyle = '#676767';
-    ctx.fillRect(3, 3, 60 - 3, height - 6);
+        ctx.fillStyle = '#676767';
+        ctx.fillRect(3, 3, 60 - 3, height - 6);
 
-    ctx.fillStyle = '#919191';
-    ctx.fillRect(5, 5, 60 - 5, height - 8);
+        ctx.fillStyle = '#919191';
+        ctx.fillRect(5, 5, 60 - 5, height - 8);
 
 
-    if (key.cid === 'land.sams.mc-connect.inventory') await drawItem(ctx, inventory[slot]);
+        await drawItem(ctx, inventory[slot]);
+    }
     if (key.cid === 'land.sams.mc-connect.armour') await drawArmour(ctx, inventory[36], inventory[37], inventory[38], inventory[39])
 
     return canvas.toDataURL('image/png');
@@ -158,6 +156,7 @@ async function drawArmour(ctx, boots, leggings, chestplate, helmet) {
 }
 
 async function draw(ctx, item, x, y, width, height) {
+    if (!item?.id) return;
     const imagePath = join(resourcesPath, 'assets', `${item.id.split('.').at(-1).toUpperCase()}.png`)
     const image = await loadImage(imagePath);
 
