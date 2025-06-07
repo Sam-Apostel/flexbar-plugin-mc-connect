@@ -5,7 +5,7 @@
     "author": "Sam Apostel",
     "entry": "backend/plugin.cjs",
     "description": "Connect the flexbar to minecraft",
-    "repo": "https://github.com/Sam-Apostel/mc-connect",
+    "repo": "https://github.com/Sam-Apostel/flexbar-plugin-mc-connect",
     "sdk": {
         "version": "1.0.0"
     },
